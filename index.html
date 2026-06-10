@@ -512,7 +512,7 @@
 
   // ── 渲染表單 ─────────────────────────────────────
   function renderForm(info) {
-    sessionStorage.setItem('cachedUserInfo', JSON.stringify(info));
+    localStorage.setItem('cachedUserInfo', JSON.stringify(info));
     userEmail      = info.email  || '';
     userFillerInfo = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
 
