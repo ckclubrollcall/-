@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>建中社團線上點名系統</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+    --green:   #7a9eb5;
+    --green-lt:#edf2f6;
+    --blue:    #5b7e96;
+    --blue-lt: #e8eff4;
+    --red:     #b07a7a;
+    --red-lt:  #f5eded;
+    --gray-50: #f5f7f9;
+    --gray-100:#eaeff3;
+    --gray-300:#c8d4dc;
+    --gray-500:#8fa5b5;
+    --gray-700:#5c7285;
+    --gray-900:#2c3e4a;
+    --radius:  8px;
+    --shadow:  0 2px 12px rgba(91,126,150,.13);
+    }
+
+    body {
+      font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+      background: var(--gray-50);
+      color: var(--gray-900);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 48px;
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      max-width: 640px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    header h1 { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); line-height: 1.3; }
+    header p  { font-size: .8rem; color: var(--gray-500); margin-top: 2px; }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 640px;
+    }
+
+    /* ── Loading / Auth state ── */
+    #loadingArea {
+      text-align: center;
+      padding: 48px 0;
+      color: var(--gray-500);
+      font-size: 1rem;
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--gray-300);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Google Sign-In Button ── */
+    #loginArea {
+      display: none;
+      text-align: center;
+      padding: 32px 0 16px;
+    }
+    #loginArea .login-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 6px; }
+    #loginArea .login-sub   { font-size: .85rem; color: var(--gray-500); margin-bottom: 24px; }
+    #g_id_signin            { display: inline-block; }
+
+    /* ── Teacher / External login ── */
+    #teacherAuthArea {
+      display: none;
+      border: 2px dashed var(--blue);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-top: 16px;
+      background: var(--blue-lt);
+    }
+    #teacherAuthArea h3 { color: var(--blue); font-size: 1rem; margin-bottom: 8px; }
+    #teacherAuthArea p  { font-size: .85rem; color: var(--gray-700); margin-bottom: 16px; }
+
+    /* ── Form ── */
+    #formArea { display: none; }
+
+    .form-group { margin-bottom: 20px; }
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      font-size: .9rem;
+      color: var(--gray-700);
+      margin-bottom: 6px;
+    }
+    .form-group .hint {
+      font-size: .78rem;
+      color: var(--gray-500);
+      margin-bottom: 5px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="date"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius);
+      font-size: .95rem;
+      font-family: inherit;
+      color: var(--gray-900);
+      background: #fff;
+      transition: border-color .2s;
+      appearance: auto;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(26,127,75,.15);
+    }
+    input[readonly], input[disabled] {
+      background: var(--gray-100);
+      color: var(--gray-700);
+      cursor: not-allowed;
+      border-color: var(--gray-300);
+    }
+    textarea { height: 88px; resize: vertical; }
+
+    /* ── Attendance list ── */
+    #studentList {
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius);
+      max-height: 380px;
+      overflow-y: auto;
+      background: #fff;
+    }
+    .student-item {
+      display: flex;
+      align-items: center;
+      padding: 11px 14px;
+      border-bottom: 1px dashed var(--gray-300);
+      font-size: .95rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .student-item:last-child { border-bottom: none; }
+    .student-item:hover { background: var(--gray-50); }
+    .student-item input[type="checkbox"] {
+      width: 18px; height: 18px;
+      margin-right: 12px;
+      accent-color: var(--green);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .student-item label { cursor: pointer; flex: 1; }
+
+    /* ── Signature ── */
+    #sigOpenBtn {
+      background: var(--gray-100);
+      border: 1.5px solid var(--gray-300);
+      color: var(--gray-700);
+      border-radius: var(--radius);
+      padding: 10px;
+      font-size: .95rem;
+      font-weight: 600;
+      width: 100%;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    #sigOpenBtn:hover { background: var(--gray-300); }
+    #sigStatus {
+      display: none;
+      color: var(--green);
+      font-weight: 600;
+      font-size: .9rem;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-content {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px 20px 20px;
+      width: 100%; max-width: 520px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    }
+    .modal-content h3 { font-size: 1.05rem; text-align: center; margin-bottom: 14px; color: var(--gray-900); }
+    #sigCanvas {
+      width: 100%;
+      height: 180px;
+      border: 1.5px solid var(--gray-300);
+      border-radius: var(--radius);
+      background: #fff;
+      cursor: crosshair;
+      touch-action: none;
+      display: block;
+    }
+    .btn-group { display: flex; gap: 10px; margin-top: 14px; }
+    .btn-group button { flex: 1; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-primary   { background: var(--blue);  color: #fff; }
+    .btn-green     { background: var(--green); color: #fff; }
+    .btn-red       { background: var(--red);   color: #fff; }
+    .btn-gray      { background: var(--gray-500); color: #fff; }
+    .btn-submit { background: var(--blue); color: #fff; margin-top: 6px; font-size: 1.05rem; }
+
+    /* ── Summary ── */
+    #summaryArea { display: none; }
+    .summary-box {
+      background: var(--green-lt);
+      border: 1.5px solid #5b7e96;
+      border-radius: var(--radius);
+      padding: 16px;
+      font-size: .9rem;
+      line-height: 1.9;
+    }
+    .summary-box strong { color: var(--green); }
+    .absent-block {
+      background: #fff;
+      border: 1px dashed var(--gray-300);
+      border-radius: 6px;
+      padding: 10px;
+      margin-top: 6px;
+      white-space: pre-wrap;
+      font-size: .88rem;
+    }
+    .refresh-hint { color: var(--red); font-weight: 600; font-size: .85rem; margin-top: 14px; text-align: center; }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--gray-300); margin: 20px 0; }
+
+    /* ── Footer ── */
+    footer { margin-top: 24px; font-size: .78rem; color: var(--gray-500); text-align: center; }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/CKHS_Taipei_Logo.png/500px-CKHS_Taipei_Logo.png" 
+       style="width:38px;height:38px;object-fit:contain;" alt="建中校徽">
+  </div>
+  <div>
+    <h1>建中社團線上點名系統</h1>
+  </div>
+</header>
+
+<div class="card">
+
+  <!-- ① Loading -->
+  <div id="loadingArea" style="display:none;">
+    <div class="spinner"></div>
+    身分驗證中，請稍候…
+  </div>
+
+  <!-- ② Google Sign-In (未登入時) -->
+  <div id="loginArea">
+    <p class="login-title">請使用學校 Google 帳號登入</p>
+    <div id="g_id_signin"></div>
+  </div>
+
+  <!-- ③ 外部帳號登入 (不在原始名單) -->
+  <div id="teacherAuthArea">
+    <h3>🔑 測試登入</h3>
+    <p>您的帳號不在學生名單中。若為測試人員，請輸入測試帳號資訊。</p>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="text" id="teacherEmail" placeholder="請輸入信箱">
+    </div>
+    <div class="form-group">
+      <label>密碼</label>
+      <input type="password" id="teacherPassword" placeholder="請輸入系統密碼">
+    </div>
+    <div class="form-group">
+      <label>測試社團名稱</label>
+      <input type="text" id="testClub" placeholder="需與原始名單完全一致">
+    </div>
+    <button class="btn btn-primary" onclick="submitTeacherAuth()" id="teacherAuthBtn">登入系統</button>
+  </div>
+
+  <!-- ④ 點名表單 -->
+  <div id="formArea">
+    <input type="hidden" id="club">
+    <input type="hidden" id="fillerName">
+    <input type="hidden" id="fillerInfo">
+
+    <!-- 社團 -->
+    <div class="form-group">
+      <label>社團</label>
+      <input type="text" id="identityClubName" readonly>
+    </div>
+
+    <!-- 社課日期 -->
+    <div class="form-group">
+      <label>社課日期</label>
+      <input type="date" id="date">
+    </div>
+
+    <!-- 填寫人 -->
+    <div class="form-group">
+      <label>填寫人</label>
+      <input type="text" id="identityWriter" readonly>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 社課內容 -->
+    <div class="form-group">
+      <label>社課內容簡述</label>
+      <textarea id="desc" placeholder="請簡述今日社課內容…"></textarea>
+    </div>
+
+    <!-- 指導老師出席 -->
+    <div class="form-group">
+      <label>指導老師是否出席</label>
+      <select id="teacherPresent" onchange="toggleSubTeacher()">
+        <option value="是">是</option>
+        <option value="否">否</option>
+      </select>
+    </div>
+
+    <!-- 代課老師（老師未出席時顯示） -->
+    <div class="form-group" id="subTeacherGroup" style="display:none;">
+      <label>代課老師姓名</label>
+      <span class="hint">若無代課老師請保留「無」</span>
+      <input type="text" id="subTeacher" value="無">
+    </div>
+
+    <!-- 老師簽名 -->
+    <div class="form-group">
+      <label>老師簽名</label>
+      <button id="sigOpenBtn" type="button" onclick="openSigModal()">點擊開啟簽名板</button>
+      <div id="sigStatus">✅ 已完成簽名</div>
+    </div>
+
+    <!-- 簽名 Modal -->
+    <div id="sigModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3>老師請在此簽名</h3>
+        <canvas id="sigCanvas"></canvas>
+        <div class="btn-group">
+          <button class="btn btn-red" type="button" onclick="clearCanvas()">清除重簽</button>
+          <button class="btn btn-green" type="button" onclick="closeSigModal()">確認並關閉</button>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 點名區 -->
+    <div class="form-group">
+      <label>點名區 <span id="attendCount" style="font-weight:400;color:var(--gray-500);font-size:.85rem;"></span></label>
+      <div id="studentList" style="text-align:center;padding:24px;color:var(--gray-500);">
+        <div class="spinner" style="margin:0 auto 10px;"></div>載入名單中…
+      </div>
+    </div>
+
+    <!-- 送出 -->
+    <button class="btn btn-submit" id="submitBtn" onclick="submitForm()">確認送出</button>
+  </div>
+
+  <!-- ⑤ 成功畫面 -->
+  <div id="summaryArea">
+    <div style="text-align:center;margin-bottom:20px;">
+      <h2 style="color:var(--green);font-size:1.3rem;margin-top:8px;">點名紀錄已送出</h2>
+      <p style="font-size:.85rem;color:var(--gray-500);margin-top:4px;">備份已寄至您的信箱</p>
+    </div>
+    <div class="summary-box">
+      <div><strong>社團：</strong><span id="s_club"></span></div>
+      <div><strong>社課日期：</strong><span id="s_date"></span></div>
+      <div><strong>填寫人：</strong><span id="s_filler"></span></div>
+      <div><strong>社課內容：</strong><span id="s_desc"></span></div>
+      <div><strong>老師出席：</strong><span id="s_teacher"></span></div>
+      <div><strong>實到人數：</strong><span id="s_present"></span> 人</div>
+      <div style="margin-top:8px;"><strong>缺席名單：</strong>
+        <div class="absent-block" id="s_absent"></div>
+      </div>
+    </div>
+    <p class="refresh-hint">若需重新填寫，請重新整理頁面。</p>
+  </div>
+
+</div><!-- /card -->
+
+<footer>開發人員：建中80屆社審會學代 王宥鈞</footer>
+
+<!-- ════════════════════ Script ════════════════════ -->
+<script>
+  // ── 設定 ──────────────────────────────────────────
+  const GAS_URL    = 'https://script.google.com/macros/s/AKfycbwQy5N_b1e1NpBu6eWDrjzDtdiqDHrh7mJ57VPguoQqY43RgZ0ngESoIkPn2xz0peW5eg/exec'; // ← 請填入你的 GAS doPost 網址
+  const CLIENT_ID  = '677567825012-trn7df75svjbov5726sl4ulasmeaa7a3.apps.googleusercontent.com';
+
+  let userEmail    = '';
+  let userFillerInfo = '';
+  let canvas, ctx, isDrawing = false, hasSigned = false, isCanvasSized = false;
+  let allStudents  = [];  // 儲存全部社員資料，方便即時計算出席人數
+
+  // ── Google OAuth 初始化 ───────────────────────────
+  window.addEventListener('load', () => {
+    google.accounts.id.initialize({
+      client_id: CLIENT_ID,
+      callback: handleGoogleCredential,
+      auto_select: true,           // 同一瀏覽器登入過就直接自動帶入
+      cancel_on_tap_outside: false
+    });
+
+    showLoginButton();
+
+    initDatePicker();
+  });
+
+  function showLoginButton() {
+    document.getElementById('loadingArea').style.display = 'none';
+    document.getElementById('loginArea').style.display = 'block';
+    google.accounts.id.renderButton(
+      document.getElementById('g_id_signin'),
+      { theme: 'outline', size: 'large', locale: 'zh-TW', text: 'signin_with' }
+    );
+  }
+
+  // ── 取得 Google credential 後解析 email ──────────
+  async function handleGoogleCredential(response) {
+    document.getElementById('loginArea').style.display   = 'none';
+    document.getElementById('loadingArea').style.display = 'block';
+
+    // 解碼 JWT payload（不做加密驗證，由後端 GAS 信任此前端發送的 email）
+    const base64 = response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(base64));
+    const email   = payload.email;
+
+    await fetchUserInfo(email);
+  }
+
+  // ── 向 GAS 查詢身分 ──────────────────────────────
+  async function fetchUserInfo(email) {
+    try {
+      const res  = await gasPost({ action: 'getLoginUser', email });
+      handleUserInfo(res, email);
+    } catch(err) {
+      showError('無法連線至伺服器，請稍後再試。');
+    }
+  }
+
+  function handleUserInfo(info, email) {
+    document.getElementById('loadingArea').style.display = 'none';
+
+    if (info.needManualLogin) {
+      document.getElementById('teacherAuthArea').style.display = 'block';
+      if (info.defaultEmail) document.getElementById('teacherEmail').value = info.defaultEmail;
+      return;
+    }
+    if (info.error) { showError('驗證失敗：' + info.msg); return; }
+
+    renderForm(info);
+  }
+
+  // ── 渲染表單 ─────────────────────────────────────
+  function renderForm(info) {
+    userEmail      = info.email  || '';
+    userFillerInfo = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
+
+    document.getElementById('formArea').style.display = 'block';
+    document.getElementById('club').value        = info.club    || '';
+    document.getElementById('fillerName').value  = info.name    || '';
+    document.getElementById('fillerInfo').value  = userFillerInfo;
+
+    document.getElementById('identityClubName').value = (info.clubId || '') + ' ' + (info.club || '');
+    document.getElementById('identityWriter').value   = (info.remark || '') + ' ' + (info.name || '');
+
+    initCanvas();
+    loadStudents(info.club);
+  }
+
+  // ── 外部帳號登入 ──────────────────────────────────
+  async function submitTeacherAuth() {
+    const email    = document.getElementById('teacherEmail').value.trim();
+    const password = document.getElementById('teacherPassword').value.trim();
+    const club     = document.getElementById('testClub').value.trim();
+    if (!email || !password || !club) { alert('⚠️ 請完整填寫所有欄位！'); return; }
+
+    const btn = document.getElementById('teacherAuthBtn');
+    btn.disabled = true; btn.textContent = '驗證中…';
+
+    try {
+      const res = await gasPost({ action: 'verifyTestLogin', email, password, club });
+      btn.disabled = false; btn.textContent = '登入系統';
+      if (res.error) { alert('❌ ' + res.msg); return; }
+      document.getElementById('teacherAuthArea').style.display = 'none';
+      renderForm(res);
+    } catch(err) {
+      btn.disabled = false; btn.textContent = '登入系統';
+      alert('連線失敗，請稍後再試。');
+    }
+  }
+
+  // ── 日期選擇器（只允許最近四天）───────────────────
+  function initDatePicker() {
+    const input = document.getElementById('date');
+    const today = new Date();
+    const tz    = today.getTimezoneOffset() * 60000;
+    const max   = new Date(today.getTime() - tz).toISOString().split('T')[0];
+    const min   = new Date(today.getTime() - 4*86400000 - tz).toISOString().split('T')[0];
+    input.max   = max;
+    input.min   = min;
+    input.value = max;
+  }
+
+  // ── 代課老師顯示切換 ─────────────────────────────
+  function toggleSubTeacher() {
+    const present = document.getElementById('teacherPresent').value;
+    const grp     = document.getElementById('subTeacherGroup');
+    const inp     = document.getElementById('subTeacher');
+    if (present === '否') {
+      grp.style.display = 'block';
+    } else {
+      grp.style.display = 'none';
+      inp.value = '無';
+    }
+  }
+
+  // ── 簽名板 ────────────────────────────────────────
+  function initCanvas() {
+    canvas = document.getElementById('sigCanvas');
+    ctx    = canvas.getContext('2d');
+
+    const getPos = (e) => {
+      const r   = canvas.getBoundingClientRect();
+      const src = e.touches ? e.touches[0] : e;
+      return { x: src.clientX - r.left, y: src.clientY - r.top };
+    };
+    const start = (e) => { isDrawing = true; draw(e); };
+    const stop  = ()  => { isDrawing = false; ctx.beginPath(); };
+    const draw  = (e) => {
+      if (!isDrawing) return;
+      e.preventDefault();
+      hasSigned = true;
+      const p = getPos(e);
+      ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    };
+
+    canvas.addEventListener('mousedown',  start);
+    canvas.addEventListener('mousemove',  draw);
+    canvas.addEventListener('mouseup',    stop);
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove',  draw,  { passive: false });
+    canvas.addEventListener('touchend',   stop);
+  }
+
+  function openSigModal() {
+    document.getElementById('sigModal').classList.add('open');
+    if (!isCanvasSized) {
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      isCanvasSized = true;
+    }
+  }
+
+  function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hasSigned = false;
+  }
+
+  function closeSigModal() {
+    document.getElementById('sigModal').classList.remove('open');
+    document.getElementById('sigStatus').style.display = hasSigned ? 'block' : 'none';
+  }
+
+  // ── 載入社員名單 ──────────────────────────────────
+  async function loadStudents(clubName) {
+    try {
+      const students = await gasPost({ action: 'getClubMembers', clubName });
+      renderStudents(students);
+    } catch(err) {
+      document.getElementById('studentList').textContent = '名單載入失敗，請重新整理。';
+    }
+  }
+
+  function renderStudents(students) {
+    allStudents = students;
+    const listDiv = document.getElementById('studentList');
+    listDiv.innerHTML = '';
+
+    if (!students || students.length === 0) {
+      listDiv.textContent = '找不到該社團名單，請聯絡社活組。';
+      return;
+    }
+
+    students.forEach(s => {
+      const text  = `${s.class} ${s.no} ${s.name}`;
+      const item  = document.createElement('div');
+      item.className = 'student-item';
+
+      const cb  = document.createElement('input');
+      cb.type   = 'checkbox';
+      cb.className = 'student-cb';
+      cb.value  = text;
+      cb.id     = 'cb_' + s.id;
+      cb.addEventListener('change', updateCount);
+
+      const lbl = document.createElement('label');
+      lbl.htmlFor    = cb.id;
+      lbl.textContent = text;
+
+      item.appendChild(cb);
+      item.appendChild(lbl);
+      listDiv.appendChild(item);
+    });
+
+    updateCount();
+  }
+
+  function updateCount() {
+    const total   = allStudents.length;
+    const present = document.querySelectorAll('.student-cb:checked').length;
+    document.getElementById('attendCount').textContent = `（出席 ${present} / ${total} 人）`;
+  }
+
+  // ── 送出 ──────────────────────────────────────────
+  async function submitForm() {
+    const btn = document.getElementById('submitBtn');
+
+    const desc    = document.getElementById('desc').value.trim();
+    const clubVal = document.getElementById('club').value;
+
+    if (!desc) { alert('⚠️ 請填寫社課內容簡述！'); return; }
+    if (!hasSigned) { alert('⚠️ 請完成老師簽名！'); return; }
+
+    const checkboxes   = document.querySelectorAll('.student-cb');
+    let   absentList   = [];
+    let   presentCount = 0;
+
+    checkboxes.forEach(cb => {
+      if (cb.checked) presentCount++;
+      else absentList.push(cb.value);
+    });
+
+    const data = {
+      email:          userEmail,
+      fillerInfo:     document.getElementById('fillerInfo').value,
+      club:           clubVal,
+      date:           document.getElementById('date').value,
+      fillerName:     document.getElementById('fillerName').value,
+      desc:           desc,
+      teacherPresent: document.getElementById('teacherPresent').value,
+      subTeacher:     document.getElementById('subTeacher').value,
+      presentCount:   presentCount,
+      absentList:     absentList.length > 0 ? absentList.join('\n') : '全勤',
+      signature:      hasSigned ? canvas.toDataURL('image/png') : ''
+    };
+
+    btn.disabled    = true;
+    btn.textContent = '資料傳送中，請勿關閉網頁…';
+
+    try {
+      const res = await gasPost({ action: 'submitAttendance', data });
+      if (res === 'SUCCESS' || res?.status !== 'error') {
+        showSummary(data);
+      } else {
+        alert('送出失敗：' + (res.message || '未知錯誤'));
+        btn.disabled    = false;
+        btn.textContent = '確認送出';
+      }
+    } catch(err) {
+      alert('連線失敗，請稍後再試。');
+      btn.disabled    = false;
+      btn.textContent = '確認送出';
+    }
+  }
+
+  function showSummary(data) {
+    document.getElementById('formArea').style.display    = 'none';
+    document.getElementById('summaryArea').style.display = 'block';
+    document.getElementById('s_club').textContent    = data.club;
+    document.getElementById('s_date').textContent    = data.date;
+    document.getElementById('s_filler').textContent  = data.fillerName;
+    document.getElementById('s_desc').textContent    = data.desc;
+    document.getElementById('s_teacher').textContent = data.teacherPresent + '（代課：' + data.subTeacher + '）';
+    document.getElementById('s_present').textContent = String(data.presentCount);
+    document.getElementById('s_absent').textContent  = data.absentList;
+  }
+
+  // ── GAS API Helper ────────────────────────────────
+  async function gasPost(body) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    body: JSON.stringify(body)
+    // 不設 Content-Type header，讓瀏覽器自動處理，避免 CORS preflight
+  });
+  return res.json();
+  }
+
+  // ── 工具 ──────────────────────────────────────────
+  function showError(msg) {
+    document.getElementById('loadingArea').innerHTML =
+      `<div style="color:var(--red);font-size:.95rem;">${msg}</div>`;
+  }
+</script>
+
+</body>
+</html>
