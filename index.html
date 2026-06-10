@@ -157,17 +157,21 @@
       background: #fff;
     }
     .student-item {
-      display: flex;
-      align-items: center;
-      padding: 11px 14px;
-      border-bottom: 1px dashed var(--gray-300);
-      font-size: .95rem;
-      cursor: pointer;
-      align-items: center; 
-      transition: background .15s;
-    }
-    .student-item:last-child { border-bottom: none; }
-    .student-item:hover { background: var(--gray-50); }
+  display: flex;
+  align-items: center;
+  padding: 11px 14px;
+  border-bottom: 1px dashed var(--gray-300);
+  font-size: .95rem;
+  cursor: pointer;
+  transition: background .2s, color .2s;
+  background: var(--red-lt);       /* 預設：未出席 = 淡紅 */
+  color: var(--red);
+}
+.student-item:last-child { border-bottom: none; }
+.student-item.present {
+  background: var(--green-lt);     /* 出席 = 淡綠 */
+  color: var(--green);
+}
     .student-item input[type="checkbox"] {
       width: 18px; height: 18px;
       margin-right: 12px;
@@ -457,13 +461,18 @@
 }
 
   function showLoginButton() {
-    document.getElementById('loadingArea').style.display = 'none';
-    document.getElementById('loginArea').style.display = 'block';
-    google.accounts.id.renderButton(
-      document.getElementById('g_id_signin'),
-      { theme: 'outline', size: 'large', locale: 'zh-TW', text: 'signin_with' }
-    );
+  const cached = localStorage.getItem('cachedUserInfo');
+  if (cached) {
+    renderForm(JSON.parse(cached));   // 有快取就直接進表單
+    return;
   }
+  document.getElementById('loadingArea').style.display = 'none';
+  document.getElementById('loginArea').style.display = 'block';
+  google.accounts.id.renderButton(
+    document.getElementById('g_id_signin'),
+    { theme: 'outline', size: 'large', locale: 'zh-TW', text: 'signin_with' }
+  );
+}
 
   // ── 取得 Google credential 後解析 email ──────────
   async function handleGoogleCredential(response) {
@@ -503,6 +512,7 @@
 
   // ── 渲染表單 ─────────────────────────────────────
   function renderForm(info) {
+    sessionStorage.setItem('cachedUserInfo', JSON.stringify(info));
     userEmail      = info.email  || '';
     userFillerInfo = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
 
@@ -644,7 +654,10 @@
       cb.className = 'student-cb';
       cb.value  = text;
       cb.id     = 'cb_' + s.id;
-      cb.addEventListener('change', updateCount);
+      cb.addEventListener('change', () => {
+  item.classList.toggle('present', cb.checked);
+  updateCount();
+});
 
       const lbl = document.createElement('label');
       lbl.htmlFor    = cb.id;
