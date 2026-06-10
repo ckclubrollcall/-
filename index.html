@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>建中社團線上點名系統</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script 
+  src="https://accounts.google.com/gsi/client" 
+  onload="initGoogleSignIn()" 
+  async defer>
+</script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -439,18 +443,16 @@
   let allStudents  = [];  // 儲存全部社員資料，方便即時計算出席人數
 
   // ── Google OAuth 初始化 ───────────────────────────
-  window.addEventListener('load', () => {
-    google.accounts.id.initialize({
-      client_id: CLIENT_ID,
-      callback: handleGoogleCredential,
-      auto_select: true,           // 同一瀏覽器登入過就直接自動帶入
-      cancel_on_tap_outside: false
-    });
-
-    showLoginButton();
-
-    initDatePicker();
+  function initGoogleSignIn() {
+  google.accounts.id.initialize({
+    client_id: CLIENT_ID,
+    callback: handleGoogleCredential,
+    auto_select: true,
+    cancel_on_tap_outside: false
   });
+  showLoginButton();
+  initDatePicker();
+}
 
   function showLoginButton() {
     document.getElementById('loadingArea').style.display = 'none';
