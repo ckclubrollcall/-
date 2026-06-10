@@ -415,6 +415,9 @@
 
     <!-- 送出 -->
     <button class="btn btn-submit" id="submitBtn" onclick="submitForm()">確認送出</button>
+    <p style="text-align:center; margin-top:12px;">
+      <a href="#" onclick="logout(); return false;" style="font-size:.8rem; color:var(--gray-500); text-decoration:none;">切換帳號 / 登出</a>
+    </p>
   </div>
 
   <!-- ⑤ 成功畫面 -->
@@ -753,6 +756,12 @@
     // 不設 Content-Type header，讓瀏覽器自動處理，避免 CORS preflight
   });
   return res.json();
+  }
+
+  // ── 登出 ──────────────────────────────────────────
+  function logout() {
+    localStorage.removeItem('cachedUserInfo');
+    location.reload();
   }
 
   // ── 工具 ──────────────────────────────────────────
