@@ -1,19 +1,33 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+
+  <!-- 網頁建置、預覽 -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>建中社團線上點名系統</title>
-  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/ckclubrollcall/-/main/%E7%A4%BE.png">
   <meta property="og:title" content="建中社團線上點名系統">
   <meta property="og:description" content="請使用@gl.ck.tp.edu.tw帳號填寫">
-  <meta property="og:image" content="https://raw.githubusercontent.com/ckclubrollcall/-/main/%E9%A0%90%E8%A6%BD.png">
+  <meta property="og:image" content="https://github.com/ckclubrollcall/-/blob/main/78e1d4b8-2dea-45fc-9416-0837e20c3bb2.jpg">
   <meta property="og:type" content="website">
-  <script 
-  src="https://accounts.google.com/gsi/client" 
-  onload="initGoogleSignIn()" 
+
+  <!-- ★ 安全：CSP 防止外部腳本注入（僅允許必要來源） -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com;
+             style-src 'self' 'unsafe-inline';
+             img-src * data:;
+             connect-src https://script.google.com https://accounts.google.com;
+             frame-src https://accounts.google.com;">
+
+  <!-- 登入按鈕 -->
+  <script
+  src="https://accounts.google.com/gsi/client"
+  onload="initGoogleSignIn()"
   async defer>
-</script>
+  </script>
+
+  <!-- 網頁美觀 -->
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -45,7 +59,7 @@
       padding: 24px 16px 48px;
     }
 
-    /* ── Header ── */
+    /* 標題樣式 */
     header {
       width: 100%;
       max-width: 640px;
@@ -53,12 +67,12 @@
       align-items: center;
       gap: 12px;
       margin-bottom: 24px;
-      justify-content: center;  /* ← 加這行 */
+      justify-content: center;
     }
     header h1 { font-size: 1.3rem; font-weight: 700; color: var(--gray-900); line-height: 1.3; }
     header p  { font-size: .8rem; color: var(--gray-500); margin-top: 2px; }
 
-    /* ── Card ── */
+    /* 題目樣式 */
     .card {
       background: #fff;
       border-radius: 12px;
@@ -68,7 +82,7 @@
       max-width: 640px;
     }
 
-    /* ── Loading / Auth state ── */
+    /* 身分驗證頁面 */
     #loadingArea {
       text-align: center;
       padding: 48px 0;
@@ -85,7 +99,7 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Google Sign-In Button ── */
+    /* Google登入按鈕 */
     #loginArea {
       display: none;
       text-align: center;
@@ -95,7 +109,7 @@
     #loginArea .login-sub   { font-size: .85rem; color: var(--gray-500); margin-bottom: 24px; }
     #g_id_signin            { display: inline-block; }
 
-    /* ── Teacher / External login ── */
+    /* 外部登入頁面 */
     #teacherAuthArea {
       display: none;
       border: 2px dashed var(--blue);
@@ -107,7 +121,7 @@
     #teacherAuthArea h3 { color: var(--blue); font-size: 1rem; margin-bottom: 8px; }
     #teacherAuthArea p  { font-size: .85rem; color: var(--gray-700); margin-bottom: 16px; }
 
-    /* ── Form ── */
+    /* 表單頁面 */
     #formArea { display: none; }
 
     .form-group { margin-bottom: 20px; }
@@ -153,7 +167,7 @@
     }
     textarea { height: 88px; resize: vertical; }
 
-    /* ── Attendance list ── */
+    /* 點名表 */
     #studentList {
       border: 1.5px solid var(--gray-300);
       border-radius: var(--radius);
@@ -162,21 +176,21 @@
       background: #fff;
     }
     .student-item {
-  display: flex;
-  align-items: center;
-  padding: 11px 14px;
-  border-bottom: 1px dashed var(--gray-300);
-  font-size: .95rem;
-  cursor: pointer;
-  transition: background .2s, color .2s;
-  background: var(--red-lt);       /* 預設：未出席 = 淡紅 */
-  color: var(--red);
-}
-.student-item:last-child { border-bottom: none; }
-.student-item.present {
-  background: var(--green-lt);     /* 出席 = 淡綠 */
-  color: var(--green);
-}
+      display: flex;
+      align-items: center;
+      padding: 11px 14px;
+      border-bottom: 1px dashed var(--gray-300);
+      font-size: .95rem;
+      cursor: pointer;
+      transition: background .2s, color .2s;
+      background: var(--red-lt);
+      color: var(--red);
+    }
+    .student-item:last-child { border-bottom: none; }
+    .student-item.present {
+      background: var(--green-lt);
+      color: var(--green);
+    }
     .student-item input[type="checkbox"] {
       width: 18px; height: 18px;
       margin-right: 12px;
@@ -186,7 +200,7 @@
     }
     .student-item label { cursor: pointer; flex: 1; }
 
-    /* ── Signature ── */
+    /* 點擊簽名 */
     #sigOpenBtn {
       background: var(--gray-100);
       border: 1.5px solid var(--gray-300);
@@ -209,7 +223,7 @@
       margin-top: 10px;
     }
 
-    /* ── Modal ── */
+    /* 簽名面板 */
     .modal-overlay {
       display: none;
       position: fixed; inset: 0;
@@ -241,7 +255,7 @@
     .btn-group { display: flex; gap: 10px; margin-top: 14px; }
     .btn-group button { flex: 1; }
 
-    /* ── Buttons ── */
+    /* 按鈕 */
     .btn {
       display: block;
       width: 100%;
@@ -262,7 +276,7 @@
     .btn-gray      { background: var(--gray-500); color: #fff; }
     .btn-submit { background: var(--blue); color: #fff; margin-top: 6px; font-size: 1.05rem; }
 
-    /* ── Summary ── */
+    /* 結果頁面 */
     #summaryArea { display: none; }
     .summary-box {
       background: var(--green-lt);
@@ -284,11 +298,20 @@
     }
     .refresh-hint { color: var(--red); font-weight: 600; font-size: .85rem; margin-top: 14px; text-align: center; }
 
-    /* ── Divider ── */
+    /* 分隔線 */
     .divider { border: none; border-top: 1px solid var(--gray-300); margin: 20px 0; }
 
-    /* ── Footer ── */
+    /* 開發人員 */
     footer { margin-top: 24px; font-size: .78rem; color: var(--gray-500); text-align: center; }
+
+    /* ★ 字元計數提示 */
+    .char-counter {
+      font-size: .75rem;
+      color: var(--gray-500);
+      text-align: right;
+      margin-top: 3px;
+    }
+    .char-counter.warn { color: var(--red); font-weight: 600; }
   </style>
 </head>
 
@@ -296,7 +319,7 @@
 
 <header>
   <div class="logo">
-  <img src="https://raw.githubusercontent.com/ckclubrollcall/-/main/%E6%A0%A1%E5%BE%BD.png" 
+  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/CKHS_Taipei_Logo.png/500px-CKHS_Taipei_Logo.png"
        style="width:38px;height:38px;object-fit:contain;" alt="建中校徽">
   </div>
   <div>
@@ -324,15 +347,15 @@
     <p>您的帳號不在學生名單中。若為測試人員，請輸入測試帳號資訊。</p>
     <div class="form-group">
       <label>Email</label>
-      <input type="text" id="teacherEmail" placeholder="請輸入信箱">
+      <input type="text" id="teacherEmail" placeholder="請輸入信箱" maxlength="100" autocomplete="email">
     </div>
     <div class="form-group">
       <label>密碼</label>
-      <input type="password" id="teacherPassword" placeholder="請輸入系統密碼">
+      <input type="password" id="teacherPassword" placeholder="請輸入系統密碼" maxlength="100" autocomplete="current-password">
     </div>
     <div class="form-group">
       <label>測試社團名稱</label>
-      <input type="text" id="testClub" placeholder="需與原始名單完全一致">
+      <input type="text" id="testClub" placeholder="需與原始名單完全一致" maxlength="30">
     </div>
     <button class="btn btn-primary" onclick="submitTeacherAuth()" id="teacherAuthBtn">登入系統</button>
   </div>
@@ -366,7 +389,9 @@
     <!-- 社課內容 -->
     <div class="form-group">
       <label>社課內容簡述</label>
-      <textarea id="desc" placeholder="請簡述今日社課內容…"></textarea>
+      <textarea id="desc" placeholder="請簡述今日社課內容…" maxlength="200"
+                oninput="updateCharCounter(this, 'descCounter', 200)"></textarea>
+      <div class="char-counter" id="descCounter">0 / 200</div>
     </div>
 
     <!-- 指導老師出席 -->
@@ -382,7 +407,7 @@
     <div class="form-group" id="subTeacherGroup" style="display:none;">
       <label>代課老師姓名</label>
       <span class="hint">若無代課老師請保留「無」</span>
-      <input type="text" id="subTeacher" value="無">
+      <input type="text" id="subTeacher" value="無" maxlength="30">
     </div>
 
     <!-- 老師簽名 -->
@@ -416,9 +441,6 @@
 
     <!-- 送出 -->
     <button class="btn btn-submit" id="submitBtn" onclick="submitForm()">確認送出</button>
-    <p style="text-align:center; margin-top:12px;">
-      <a href="#" onclick="logout(); return false;" style="font-size:.8rem; color:var(--gray-500); text-decoration:none;">切換帳號 / 登出</a>
-    </p>
   </div>
 
   <!-- ⑤ 成功畫面 -->
@@ -448,57 +470,83 @@
 <!-- ════════════════════ Script ════════════════════ -->
 <script>
   // ── 設定 ──────────────────────────────────────────
-  const GAS_URL    = 'https://script.google.com/macros/s/AKfycby-nBw6O7YdUrXTOZ-2WR4A1o8FP68iwhVgmOOa1WbSWFlo_QLv6jUIjlbWH7S6dHrb/exec'; // ← 請填入你的 GAS doPost 網址
-  const CLIENT_ID  = '311035173241-nuamoemc7al4bhlp5p0nploepd6rg23h.apps.googleusercontent.com';
+  // ★ GAS_URL 與 CLIENT_ID 已移至此處，僅為必要的前端設定
+  //   無論如何 GAS Web App URL 對客戶端都是必要的（fetch 需要它）
+  //   真正的防護在後端驗證，而非隱藏 URL。
+  const GAS_URL   = 'https://script.google.com/macros/s/AKfycby-nBw6O7YdUrXTOZ-2WR4A1o8FP68iwhVgmOOa1WbSWFlo_QLv6jUIjlbWH7S6dHrb/exec';
+  const CLIENT_ID = '311035173241-nuamoemc7al4bhlp5p0nploepd6rg23h.apps.googleusercontent.com';
 
-  let userEmail    = '';
+  // ── 前端輸入限制常數（與後端一致） ────────────────
+  const MAX_DESC_LEN    = 200;
+  const MAX_TEACHER_LEN = 30;
+
+  let userEmail      = '';
   let userFillerInfo = '';
   let canvas, ctx, isDrawing = false, hasSigned = false, isCanvasSized = false;
-  let allStudents  = [];  // 儲存全部社員資料，方便即時計算出席人數
+  let allStudents    = [];
 
   // ── Google OAuth 初始化 ───────────────────────────
   function initGoogleSignIn() {
-  google.accounts.id.initialize({
-    client_id: CLIENT_ID,
-    callback: handleGoogleCredential,
-    auto_select: true,
-    cancel_on_tap_outside: false
-  });
-  showLoginButton();
-  initDatePicker();
-}
+    google.accounts.id.initialize({
+      client_id: CLIENT_ID,
+      callback: handleGoogleCredential,
+      auto_select: true,
+      cancel_on_tap_outside: false
+    });
+    showLoginButton();
+    initDatePicker();
+  }
 
   function showLoginButton() {
-  const cached = localStorage.getItem('cachedUserInfo');
-  if (cached) {
-    renderForm(JSON.parse(cached));   // 有快取就直接進表單
-    return;
+    // ★ 快取加入版本標記與過期時間（24 小時），防止永久繞過登入
+    const raw = localStorage.getItem('cachedUserInfo');
+    if (raw) {
+      try {
+        const cached = JSON.parse(raw);
+        const now    = Date.now();
+        const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 小時
+        if (cached._ts && (now - cached._ts) < CACHE_TTL) {
+          renderForm(cached);
+          return;
+        }
+      } catch(e) { /* 快取損毀，清除 */ }
+      localStorage.removeItem('cachedUserInfo');
+    }
+    document.getElementById('loadingArea').style.display = 'none';
+    document.getElementById('loginArea').style.display   = 'block';
+    google.accounts.id.renderButton(
+      document.getElementById('g_id_signin'),
+      { theme: 'outline', size: 'large', locale: 'zh-TW', text: 'signin_with' }
+    );
   }
-  document.getElementById('loadingArea').style.display = 'none';
-  document.getElementById('loginArea').style.display = 'block';
-  google.accounts.id.renderButton(
-    document.getElementById('g_id_signin'),
-    { theme: 'outline', size: 'large', locale: 'zh-TW', text: 'signin_with' }
-  );
-}
 
   // ── 取得 Google credential 後解析 email ──────────
   async function handleGoogleCredential(response) {
     document.getElementById('loginArea').style.display   = 'none';
     document.getElementById('loadingArea').style.display = 'block';
 
-    // 解碼 JWT payload（不做加密驗證，由後端 GAS 信任此前端發送的 email）
-    const base64 = response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64));
-    const email   = payload.email;
+    // ★ JWT 解碼（不做加密驗證，後端依學號比對名單；Google 簽名驗證由 GAS 端可選擴充）
+    // 注意：這裡不驗證 JWT signature，防護依賴後端名單比對。
+    try {
+      const base64  = response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64));
+      const email   = payload.email;
 
-    await fetchUserInfo(email);
+      // ★ 基本 email 格式驗證（前端先擋一層）
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError('無效的帳號格式，請重試。');
+        return;
+      }
+      await fetchUserInfo(email);
+    } catch(e) {
+      showError('登入憑證解析失敗，請重試。');
+    }
   }
 
   // ── 向 GAS 查詢身分 ──────────────────────────────
   async function fetchUserInfo(email) {
     try {
-      const res  = await gasPost({ action: 'getLoginUser', email });
+      const res = await gasPost({ action: 'getLoginUser', email });
       handleUserInfo(res, email);
     } catch(err) {
       showError('無法連線至伺服器，請稍後再試。');
@@ -513,14 +561,16 @@
       if (info.defaultEmail) document.getElementById('teacherEmail').value = info.defaultEmail;
       return;
     }
-    if (info.error) { showError('驗證失敗：' + info.msg); return; }
-
+    if (info.error) { showError('驗證失敗，請重新整理頁面再試。'); return; } // ★ 不顯示後端錯誤細節
     renderForm(info);
   }
 
   // ── 渲染表單 ─────────────────────────────────────
   function renderForm(info) {
-    localStorage.setItem('cachedUserInfo', JSON.stringify(info));
+    // ★ 快取寫入時加上時間戳記
+    const toCache = Object.assign({}, info, { _ts: Date.now() });
+    localStorage.setItem('cachedUserInfo', JSON.stringify(toCache));
+
     userEmail      = info.email  || '';
     userFillerInfo = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
 
@@ -541,7 +591,11 @@
     const email    = document.getElementById('teacherEmail').value.trim();
     const password = document.getElementById('teacherPassword').value.trim();
     const club     = document.getElementById('testClub').value.trim();
+
+    // ★ 前端格式驗證
     if (!email || !password || !club) { alert('⚠️ 請完整填寫所有欄位！'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('⚠️ Email 格式不正確！'); return; }
+    if (club.length > 30) { alert('⚠️ 社團名稱過長！'); return; }
 
     const btn = document.getElementById('teacherAuthBtn');
     btn.disabled = true; btn.textContent = '驗證中…';
@@ -558,7 +612,7 @@
     }
   }
 
-  // ── 日期選擇器（只允許最近四天）───────────────────
+  // ── 日期選擇器（只允許最近四天） ──────────────────
   function initDatePicker() {
     const input = document.getElementById('date');
     const today = new Date();
@@ -581,6 +635,14 @@
       grp.style.display = 'none';
       inp.value = '無';
     }
+  }
+
+  // ── 字元計數器 ────────────────────────────────────
+  function updateCharCounter(el, counterId, max) {
+    const len     = el.value.length;
+    const counter = document.getElementById(counterId);
+    counter.textContent = len + ' / ' + max;
+    counter.classList.toggle('warn', len >= max * 0.9);
   }
 
   // ── 簽名板 ────────────────────────────────────────
@@ -643,33 +705,35 @@
   }
 
   function renderStudents(students) {
-    allStudents = students;
-    const listDiv = document.getElementById('studentList');
+    allStudents    = students;
+    const listDiv  = document.getElementById('studentList');
     listDiv.innerHTML = '';
 
     if (!students || students.length === 0) {
+      // ★ 使用 textContent 而非 innerHTML，避免 XSS
       listDiv.textContent = '找不到該社團名單，請聯絡社活組。';
       return;
     }
 
     students.forEach(s => {
-      const text  = `${s.class} ${s.no} ${s.name}`;
-      const item  = document.createElement('div');
+      // ★ 姓名等欄位用 textContent 設定，不插入 HTML
+      const text = `${s.class} ${s.no} ${s.name}`;
+      const item = document.createElement('div');
       item.className = 'student-item';
 
-      const cb  = document.createElement('input');
-      cb.type   = 'checkbox';
-      cb.className = 'student-cb';
-      cb.value  = text;
-      cb.id     = 'cb_' + s.id;
+      const cb      = document.createElement('input');
+      cb.type       = 'checkbox';
+      cb.className  = 'student-cb';
+      cb.value      = text;
+      cb.id         = 'cb_' + s.id;
       cb.addEventListener('change', () => {
-  item.classList.toggle('present', cb.checked);
-  updateCount();
-});
+        item.classList.toggle('present', cb.checked);
+        updateCount();
+      });
 
-      const lbl = document.createElement('label');
-      lbl.htmlFor    = cb.id;
-      lbl.textContent = text;
+      const lbl           = document.createElement('label');
+      lbl.htmlFor         = cb.id;
+      lbl.textContent     = text;   // ★ textContent，非 innerHTML
 
       item.appendChild(cb);
       item.appendChild(lbl);
@@ -689,11 +753,28 @@
   async function submitForm() {
     const btn = document.getElementById('submitBtn');
 
-    const desc    = document.getElementById('desc').value.trim();
-    const clubVal = document.getElementById('club').value;
+    const descEl = document.getElementById('desc');
+    const desc   = descEl.value.trim();
 
     if (!desc) { alert('⚠️ 請填寫社課內容簡述！'); return; }
+    if (desc.length > MAX_DESC_LEN) { alert(`⚠️ 社課內容不可超過 ${MAX_DESC_LEN} 字！`); return; }
     if (!hasSigned) { alert('⚠️ 請完成老師簽名！'); return; }
+
+    // ★ 代課老師名稱長度限制
+    const subTeacherEl  = document.getElementById('subTeacher');
+    const subTeacherVal = subTeacherEl.value.trim() || '無';
+    if (subTeacherVal.length > MAX_TEACHER_LEN) {
+      alert(`⚠️ 代課老師姓名不可超過 ${MAX_TEACHER_LEN} 字！`);
+      return;
+    }
+
+    // ★ 日期範圍再次驗證（前端，後端也會再驗一次）
+    const dateInput = document.getElementById('date');
+    const dateVal   = dateInput.value;
+    if (!dateVal || dateVal < dateInput.min || dateVal > dateInput.max) {
+      alert('⚠️ 日期超出允許範圍！');
+      return;
+    }
 
     const checkboxes   = document.querySelectorAll('.student-cb');
     let   absentList   = [];
@@ -707,12 +788,12 @@
     const data = {
       email:          userEmail,
       fillerInfo:     document.getElementById('fillerInfo').value,
-      club:           clubVal,
-      date:           document.getElementById('date').value,
+      club:           document.getElementById('club').value,
+      date:           dateVal,
       fillerName:     document.getElementById('fillerName').value,
       desc:           desc,
       teacherPresent: document.getElementById('teacherPresent').value,
-      subTeacher:     document.getElementById('subTeacher').value,
+      subTeacher:     subTeacherVal,
       presentCount:   presentCount,
       absentList:     absentList.length > 0 ? absentList.join('\n') : '全勤',
       signature:      hasSigned ? canvas.toDataURL('image/png') : ''
@@ -740,6 +821,8 @@
   function showSummary(data) {
     document.getElementById('formArea').style.display    = 'none';
     document.getElementById('summaryArea').style.display = 'block';
+
+    // ★ 全部使用 textContent，避免 XSS
     document.getElementById('s_club').textContent    = data.club;
     document.getElementById('s_date').textContent    = data.date;
     document.getElementById('s_filler').textContent  = data.fillerName;
@@ -751,24 +834,23 @@
 
   // ── GAS API Helper ────────────────────────────────
   async function gasPost(body) {
-  const res = await fetch(GAS_URL, {
-    method: 'POST',
-    body: JSON.stringify(body)
-    // 不設 Content-Type header，讓瀏覽器自動處理，避免 CORS preflight
-  });
-  return res.json();
-  }
-
-  // ── 登出 ──────────────────────────────────────────
-  function logout() {
-    localStorage.removeItem('cachedUserInfo');
-    location.reload();
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify(body)
+      // 不設 Content-Type header，讓瀏覽器自動處理，避免 CORS preflight
+    });
+    return res.json();
   }
 
   // ── 工具 ──────────────────────────────────────────
   function showError(msg) {
-    document.getElementById('loadingArea').innerHTML =
-      `<div style="color:var(--red);font-size:.95rem;">${msg}</div>`;
+    const area = document.getElementById('loadingArea');
+    // ★ 使用 textContent 取代 innerHTML，避免 XSS
+    area.innerHTML = '';
+    const div = document.createElement('div');
+    div.style.cssText = 'color:var(--red);font-size:.95rem;';
+    div.textContent = msg;
+    area.appendChild(div);
   }
 </script>
 
