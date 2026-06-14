@@ -522,6 +522,8 @@
 <!-- 拜託別亂玩 -->
 <!-- 拜託別亂玩 -->
 <script>
+  /** 貢獻註記 */
+  let contributionAnnotation = "部分程式內容由 [@mm-news](https://github.com/mm-news) 以 [CC BY 4.0 License](https://creativecommons.org/licenses/by/4.0/) 貢獻";
   /* 設定 */
   const GAS_URL   = 'https://script.google.com/macros/s/AKfycby-nBw6O7YdUrXTOZ-2WR4A1o8FP68iwhVgmOOa1WbSWFlo_QLv6jUIjlbWH7S6dHrb/exec';
   const CLIENT_ID = '311035173241-nuamoemc7al4bhlp5p0nploepd6rg23h.apps.googleusercontent.com';
@@ -529,8 +531,36 @@
   const MAX_DESC_LEN    = 200;
   const MAX_TEACHER_LEN = 30;
 
-  let userEmail      = '';
-  let userFillerInfo = '';
+  class PackagedUserInfo {
+    #userEmail;
+    #userFillerInfo;
+    #club;
+    #fillerName;
+    constructor(email, fillerInfo, club, fillerName) {
+      this.#userEmail = email;
+      this.#userFillerInfo = fillerInfo;
+      this.#club = club;
+      this.#fillerName = fillerName;
+    }
+
+    get userEmail() {
+      return this.#userEmail;
+    }
+
+    get userFillerInfo() {
+      return this.#userFillerInfo;
+    }
+
+    get club() {
+      return this.#club;
+    }
+
+    get fillerName() {
+      return this.#fillerName
+    }
+  }
+  
+  window.packagedInformation = undefined;
   let canvas, ctx, isDrawing = false, hasSigned = false, isCanvasSized = false;
   let allStudents    = [];
 
@@ -613,8 +643,19 @@
     const toCache = Object.assign({}, info, { _ts: Date.now() });
     localStorage.setItem('cachedUserInfo', JSON.stringify(toCache));
 
-    userEmail      = info.email  || '';
-    userFillerInfo = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
+    let userFillerInfo = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
+
+    const temp_packagedInformation = Object.freeze(
+      new PackagedUserInfo(
+        info.email || '', userFillerInfo, info.club || '', info.name || ''
+      )
+    );
+    Object.defineProperty(window, "packagedInformation", {
+      value: temp_packagedInformation, 
+      writable: false,
+      configurable: false,
+      enumerable: true, 
+    })
 
     document.getElementById('formArea').style.display = 'block';
     document.getElementById('club').value        = info.club    || '';
@@ -823,13 +864,13 @@
     });
 
     const data = {
-      email:          userEmail,
-      fillerInfo:     document.getElementById('fillerInfo').value,
-      club:           document.getElementById('club').value,
+      email:          window.packagedInformation.userEmail,
+      fillerInfo:     window.packagedInformation.userEmail,
+      club:           window.packagedInformation.club,
       date:           dateVal,
-      fillerName:     document.getElementById('fillerName').value,
+      fillerName:     window.packagedInformation.fillerName,
       desc:           desc,
-      teacherPresent: document.getElementById('teacherPresent').value,
+      teacherPresent: document.getElementById('teacherPresent').value == "是" ? "是" : "否",
       subTeacher:     subTeacherVal,
       presentCount:   presentCount,
       absentList:     absentList.length > 0 ? absentList.join('\n') : '全勤',
