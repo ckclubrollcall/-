@@ -751,6 +751,7 @@
 
     /* 取得 Google credential 後解析 email */
     async function handleGoogleCredential(response) {
+      window.googleToken = response.credential; // 把 Token 存起來
       document.getElementById('loginArea').style.display = 'none';
       document.getElementById('loadingArea').style.display = 'block';
       try {
@@ -1015,6 +1016,7 @@
       });
 
       const data = {
+        token: window.googleToken,
         email: window.packagedInformation.userEmail,
         fillerInfo: window.packagedInformation.fillerInfo,
         club: window.packagedInformation.club,
