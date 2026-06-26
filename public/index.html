@@ -462,6 +462,7 @@
       display: none; /* 預設徹底隱藏 */
       flex: 1;       /* 顯示時自動撐滿 card 剩餘的高度 */
       width: 100%;
+      flex-direction: column;
     }
 
     /* 安全覆蓋：當 JS 取消隱藏時，強制套用 flex 佈局以完美撐滿空間，且不影響原 JS 運作 */
@@ -843,12 +844,12 @@
       if (page === 'form') {
         document.getElementById('formArea').style.display = 'none';
         document.getElementById('date').disabled = false;
-        document.getElementById('menuArea').style.display = 'block';
+        document.getElementById('menuArea').style.display = 'flex';
       } else if (page === 'records') {
         document.getElementById('recordsArea').style.display = 'none';
         document.getElementById('recordsList').style.display = 'block';
         document.getElementById('recordDetailArea').style.display = 'none';
-        document.getElementById('menuArea').style.display = 'block';
+        document.getElementById('menuArea').style.display = 'flex';
       } else if (page === 'recordDetail') {
         document.getElementById('recordDetailArea').style.display = 'none';
         document.getElementById('recordsList').style.display = 'block';
@@ -1247,7 +1248,7 @@
         value: tempPackagedInformation, writable: false, configurable: false, enumerable: true,
       });
 
-      document.getElementById('menuArea').style.display = 'block';
+      document.getElementById('menuArea').style.display = 'flex';
       history.replaceState({ page: 'menu' }, '');
       document.getElementById('btnNewForm').style.display =
         isOfficer(info.remark) ? 'flex' : 'none';
@@ -1277,7 +1278,7 @@
       document.getElementById('formFooterLink').textContent = '返回';
       document.getElementById('formFooterLink').onclick = function() {
         document.getElementById('formArea').style.display = 'none';
-        document.getElementById('menuArea').style.display = 'block';
+        document.getElementById('menuArea').style.display = 'flex';
         return false;
       };
 
@@ -1579,7 +1580,7 @@
     document.getElementById('recordsArea').style.display = 'none';
     document.getElementById('recordsList').style.display = 'block';
     document.getElementById('recordDetailArea').style.display = 'none';
-    document.getElementById('menuArea').style.display = 'block';
+    document.getElementById('menuArea').style.display = 'flex';
     }
 
     /* 10-2. 回到主選單（點 header） */
@@ -1594,7 +1595,7 @@
       });
       document.getElementById('recordsList').style.display = 'block';
       document.getElementById('date').disabled = false;
-      menu.style.display = 'block';
+      menu.style.display = 'flex';
     }
   </script>
 </body>
