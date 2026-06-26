@@ -456,11 +456,10 @@
       font-size: .93rem;
     }
 
-    /* 主選單按鈕 */
-    /* 主選單滿版與彈性佈局 */
+    /* 主選單滿版與彈性佈局（最終隱藏安全版） */
     #menuArea {
-      display: none;
-      flex: 1;
+      display: none; /* 安全防護網：預設徹底隱藏。只有當 JS 登入成功將其改為 block 時才會顯示，絕不穿幫 */
+      flex: 1;       /* 顯示時自動撐滿 card 剩餘的高度 */
       width: 100%;
     }
 
@@ -468,19 +467,19 @@
     .menu-btn-row {
       display: flex;
       flex-direction: column;
-      gap: 16px; /* 顆粒之間的間距 */
-      flex: 1;   /* 讓整個容器填滿 card 剩餘的高度 */
+      gap: 16px; 
+      height: calc(100% - 40px); /* 精準撐滿主選單高度，並預留大約 40px 給最下方的登出連結 */
       margin-top: 12px;
     }
 
     /* 開始點名按鈕（綠色系淡化虛線框） */
     .btn-menu-green {
-      background: rgba(128, 161, 144, 0.08); /* 8% 透明度的極淡綠 */
-      color: #4e6659;                        /* 沉穩的深綠色文字 */
-      border: 2px dashed #80a190;             /* 2px 虛線框 */
+      background: rgba(128, 161, 144, 0.08); 
+      color: #4e6659;                        
+      border: 2px dashed #80a190;             
       box-shadow: none;
       flex: 1;                               /* 兩個按鈕平分高度 */
-      padding: 20px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -495,12 +494,12 @@
 
     /* 查詢紀錄按鈕（藍色系淡化虛線框） */
     .btn-menu-blue {
-      background: rgba(123, 139, 172, 0.08); /* 8% 透明度的極淡藍 */
-      color: #4b5873;                        /* 沉穩的深藍色文字 */
-      border: 2px dashed #7b8bac;             /* 2px 虛線框 */
+      background: rgba(123, 139, 172, 0.08); 
+      color: #4b5873;                        
+      border: 2px dashed #7b8bac;             
       box-shadow: none;
       flex: 1;                               /* 兩個按鈕平分高度 */
-      padding: 20px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -518,11 +517,11 @@
     .btn-menu-blue:hover { background: rgba(123, 139, 172, 0.15); }
     
     .btn-menu-green:active, .btn-menu-blue:active {
-      transform: scale(0.99); /* 點擊時有微微按下的反饋感 */
+      transform: scale(0.99); 
     }
 
     /* 當非幹部登入隱藏點名按鈕時，讓查詢紀錄單獨撐滿 100% 高度 */
-    .btn-menu-green[style*="display: none"] + .btn-menu-blue {
+    .btn-menu-green[style*="none"] + .btn-menu-blue {
       height: 100%;
     }
 
