@@ -1320,6 +1320,7 @@
             if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; document.getElementById('recordsBackLink').style.display = 'block'; return; }
             renderOfficerRecordList(list);
           } else {
+            const identity = `${info.class} ${info.no} ${info.name}`;
             const list = await gasPost({ action: 'getMyAttendance', club: info.club, identity });
             document.getElementById('recordsLoading').style.display = 'none';
             if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; document.getElementById('recordsBackLink').style.display = 'block'; return; }
