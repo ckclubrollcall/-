@@ -457,10 +457,17 @@
     }
 
     /* 主選單滿版與彈性佈局（最終隱藏安全版） */
+    /* 主選單滿版與彈性佈局（最終隱藏安全版） */
     #menuArea {
-      display: none; /* 安全防護網：預設徹底隱藏。只有當 JS 登入成功將其改為 block 時才會顯示，絕不穿幫 */
+      display: none; /* 預設徹底隱藏 */
       flex: 1;       /* 顯示時自動撐滿 card 剩餘的高度 */
       width: 100%;
+    }
+
+    /* 安全覆蓋：當 JS 取消隱藏時，強制套用 flex 佈局以完美撐滿空間，且不影響原 JS 運作 */
+    #menuArea:not([style*="display: none"]) {
+      display: flex !important;
+      flex-direction: column;
     }
 
     /* 主選單左右按鈕外層容器 */
@@ -468,8 +475,8 @@
       display: flex;
       flex-direction: column;
       gap: 16px; 
-      height: calc(100% - 40px); /* 精準撐滿主選單高度，並預留大約 40px 給最下方的登出連結 */
-      margin-top: 12px;
+      flex: 1;       /* 讓外層容器自動吞下所有剩餘的彈性空間 */
+      margin-top: 0; 
     }
 
     /* 開始點名按鈕（綠色系淡化虛線框） */
