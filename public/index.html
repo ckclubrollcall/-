@@ -1343,9 +1343,9 @@
       /* 9-1. 顯示紀錄列表 */
       async function showRecords() {
         document.getElementById('menuArea').style.display = 'none';
+        pushPage('records');
         document.getElementById('recordsArea').style.display = 'block';
         document.getElementById('recordsLoading').style.display = 'block';
-        // 已經刪除 recordsBackLink.style.display = 'none'
         document.getElementById('recordsList').innerHTML = '';
         const info = window._loginInfo;
 
@@ -1354,12 +1354,14 @@
           document.getElementById('recordsLoading').style.display = 'none';
           if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; return; }
           renderOfficerRecordList(list);
+          document.getElementById('recordsBackLink').style.display = 'block';
         } else {
           const identity = `${info.class} ${info.no} ${info.name}`;
           const list = await gasPost({ action: 'getMyAttendance', club: info.club, identity });
           document.getElementById('recordsLoading').style.display = 'none';
           if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; return; }
           renderMemberRecordList(list);
+          document.getElementById('recordsBackLink').style.display = 'block';
         }
       }
 
