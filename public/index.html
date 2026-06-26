@@ -536,7 +536,7 @@
       <!-- 社課日期 -->
       <div class="form-group">
         <label>社課日期</label>
-        <input type="date" id="date">
+        <input type="date" id="date" onchange="saveDraft()">
       </div>
 
       <!-- 填寫人 -->
@@ -551,14 +551,14 @@
       <div class="form-group">
         <label>社課內容簡述</label>
         <textarea id="desc" placeholder="請簡述今日社課內容…" maxlength="200"
-          oninput="updateCharCounter(this, 'descCounter', 200)"></textarea>
+          oninput="updateCharCounter(this, 'descCounter', 200); saveDraft()"></textarea>
         <div class="char-counter" id="descCounter">0 / 200</div>
       </div>
 
       <!-- 指導老師出席 -->
       <div class="form-group">
         <label>指導老師是否出席</label>
-        <select id="teacherPresent" onchange="toggleSubTeacher()">
+        <select id="teacherPresent" onchange="toggleSubTeacher(); saveDraft()">
           <option value="是">是</option>
           <option value="否">否</option>
         </select>
@@ -568,7 +568,7 @@
       <div class="form-group" id="subTeacherGroup" style="display:none;">
         <label>代課老師姓名</label>
         <span class="hint">若無代課老師請保留「無」</span>
-        <input type="text" id="subTeacher" value="無" maxlength="30">
+        <input type="text" id="subTeacher" value="無" maxlength="30" onchange="saveDraft()">
       </div>
 
       <!-- 老師簽名 -->
@@ -715,39 +715,104 @@
     let canvas, ctx, isDrawing = false, hasSigned = false, isCanvasSized = false;
     let allStudents = [];
 
-    /* Google OAuth 初始化 */
-    function initGoogleSignIn() {
-      google.accounts.id.initialize({
-        client_id: CLIENT_ID,
-        callback: handleGoogleCredential,
-        auto_select: true,
-        cancel_on_tap_outside: false
-      });
-      showLoginButton();
-      initDatePicker();
+    const DRAFT_KEY = 'attendanceDraft';
+
+    function saveDraft() {
+      const draft = {
+        date: document.getElementById('date').value,
+        desc: document.getElementById('desc').value,
+        teacherPresent: document.getElementById('teacherPresent').value,
+        subTeacher: document.getElementById('subTeacher').value,
+        signature: hasSigned ? canvas.toDataURL('image/png') : '',
+        absentIds: Array.from(document.querySelectorAll('.student-cb'))
+          .filter(cb => !cb.checked)
+          .map(cb => cb.id)
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
     }
 
-    function showLoginButton() {
-      const raw = localStorage.getItem('cachedUserInfo');
-      if (raw) {
-        try {
-          const cached = JSON.parse(raw);
-          const now = Date.now();
-          const CACHE_TTL = 14 * 24 * 60 * 60 * 1000; // 兩周
-          if (cached._ts && (now - cached._ts) < CACHE_TTL) {
-            renderForm(cached);
-            return;
-          }
-        } catch (e) { /* 快取損毀，清除 */ }
-        localStorage.removeItem('cachedUserInfo');
-      }
-      document.getElementById('loadingArea').style.display = 'none';
-      document.getElementById('loginArea').style.display = 'block';
-      google.accounts.id.renderButton(
-        document.getElementById('g_id_signin'),
-        { theme: 'outline', size: 'large', locale: 'zh-TW', text: 'signin_with' }
-      );
+    function clearDraft() {
+      localStorage.removeItem(DRAFT_KEY);
     }
+
+    function restoreDraftIfExists() {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+
+      let draft;
+      try { draft = JSON.parse(raw); } catch (e) { clearDraft(); return; }
+
+      if (!confirm('偵測到上次未送出的內容，要還原嗎？')) {
+        clearDraft();
+        return;
+      }
+
+      if (draft.date) document.getElementById('date').value = draft.date;
+      if (draft.desc) {
+        document.getElementById('desc').value = draft.desc;
+        updateCharCounter(document.getElementById('desc'), 'descCounter', 200);
+      }
+      if (draft.teacherPresent) {
+        document.getElementById('teacherPresent').value = draft.teacherPresent;
+        toggleSubTeacher();
+      }
+      if (draft.subTeacher) document.getElementById('subTeacher').value = draft.subTeacher;
+
+      if (Array.isArray(draft.absentIds)) {
+        draft.absentIds.forEach(id => {
+          const cb = document.getElementById(id);
+          if (cb) cb.dispatchEvent(new Event('__noop')); // 佔位，避免 lint，可省略
+        });
+        document.querySelectorAll('.student-cb').forEach(cb => {
+          cb.checked = !draft.absentIds.includes(cb.id);
+          cb.dispatchEvent(new Event('change'));
+        });
+      }
+
+      if (draft.signature) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          hasSigned = true;
+          document.getElementById('sigStatus').style.display = 'block';
+        };
+        img.src = draft.signature;
+      }
+    }
+
+      /* Google OAuth 初始化 */
+      function initGoogleSignIn() {
+        google.accounts.id.initialize({
+          client_id: CLIENT_ID,
+          callback: handleGoogleCredential,
+          auto_select: true,
+          cancel_on_tap_outside: false
+        });
+        showLoginButton();
+        initDatePicker();
+      }
+
+      function showLoginButton() {
+        const raw = localStorage.getItem('cachedUserInfo');
+        if (raw) {
+          try {
+            const cached = JSON.parse(raw);
+            const now = Date.now();
+            const CACHE_TTL = 14 * 24 * 60 * 60 * 1000; // 兩周
+            if (cached._ts && (now - cached._ts) < CACHE_TTL) {
+              renderForm(cached);
+              return;
+            }
+          } catch (e) { /* 快取損毀，清除 */ }
+          localStorage.removeItem('cachedUserInfo');
+        }
+        document.getElementById('loadingArea').style.display = 'none';
+        document.getElementById('loginArea').style.display = 'block';
+        google.accounts.id.renderButton(
+          document.getElementById('g_id_signin'),
+          { theme: 'outline', size: 'large', locale: 'zh-TW', text: 'signin_with' }
+        );
+      }
 
     /* 取得 Google credential 後解析 email */
     async function handleGoogleCredential(response) {
@@ -926,6 +991,7 @@
     function closeSigModal() {
       document.getElementById('sigModal').classList.remove('open');
       document.getElementById('sigStatus').style.display = hasSigned ? 'block' : 'none';
+      saveDraft();
     }
 
     /* 載入社員名單 */
@@ -961,6 +1027,7 @@
         cb.addEventListener('change', () => {
           item.classList.toggle('present', cb.checked);
           updateCount();
+          saveDraft(); 
         });
 
         const lbl = document.createElement('label');
@@ -973,6 +1040,7 @@
       });
 
       updateCount();
+      restoreDraftIfExists();
     }
 
     function updateCount() {
@@ -1036,6 +1104,7 @@
       try {
         const res = await gasPost({ action: 'submitAttendance', data });
         if (res === 'SUCCESS' || res?.status !== 'error') {
+          clearDraft();
           showSummary(data);
         } else {
           alert('送出失敗：' + (res.message || '未知錯誤'));
