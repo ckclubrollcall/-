@@ -1307,23 +1307,24 @@
         /* 9. 查看紀錄 */
         /* 9-1. 顯示紀錄列表 */
         async function showRecords() {
-        document.getElementById('menuArea').style.display = 'none';
-        document.getElementById('recordsArea').style.display = 'block';
-        document.getElementById('recordsLoading').style.display = 'block';
-        document.getElementById('recordsBackLink').style.display = 'none';
-        document.getElementById('recordsList').innerHTML = '';
-        const info = window._loginInfo;
+          document.getElementById('menuArea').style.display = 'none';
+          document.getElementById('recordsArea').style.display = 'block';
+          document.getElementById('recordsLoading').style.display = 'block';
+          document.getElementById('recordsBackLink').style.display = 'none';
+          document.getElementById('recordsList').innerHTML = '';
+          const info = window._loginInfo;
 
-        if (isOfficer(info.remark)) {
+          if (isOfficer(info.remark)) {
             const list = await gasPost({ action: 'getAttendanceList', club: info.club });
             document.getElementById('recordsLoading').style.display = 'none';
+            if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; document.getElementById('recordsBackLink').style.display = 'block'; return; }
             renderOfficerRecordList(list);
-        } else {
-            const identity = `${info.class} ${info.no} ${info.name}`;
+          } else {
             const list = await gasPost({ action: 'getMyAttendance', club: info.club, identity });
             document.getElementById('recordsLoading').style.display = 'none';
+            if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; document.getElementById('recordsBackLink').style.display = 'block'; return; }
             renderMemberRecordList(list);
-        }
+          }
         }
 
         /* 9-2. 返回選單 */
