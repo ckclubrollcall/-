@@ -449,22 +449,106 @@
     }
 
     #recordDetailArea {
-      background: var(--gray-50);
+      font-size: .93rem;
+    }
+
+    /* 主選單左右按鈕 */
+    .menu-btn-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-menu-green {
+      background: var(--green);
+      color: #fff;
+      flex: 1;
+      padding: 18px 10px;
+      font-size: .95rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      border-radius: 12px;
+      line-height: 1.3;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 700;
+      transition: opacity .2s;
+    }
+
+    .btn-menu-blue {
+      background: var(--blue);
+      color: #fff;
+      flex: 1;
+      padding: 18px 10px;
+      font-size: .95rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      border-radius: 12px;
+      line-height: 1.3;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 700;
+      transition: opacity .2s;
+    }
+
+    .btn-menu-green:hover, .btn-menu-blue:hover { opacity: .85; }
+    .menu-btn-row:has(#btnNewForm[style*="display: none"]) .btn-menu-blue { flex: unset; width: 100%; }
+
+    .menu-btn-icon {
+      font-size: 1.6rem;
+      line-height: 1;
+    }
+
+    /* 點名詳細資訊卡 */
+    .detail-card {
+      background: #fff;
       border-radius: var(--radius);
       border: 1.5px solid var(--gray-100);
-      padding: 16px;
-      font-size: .93rem;
-      line-height: 1.8;
+      overflow: hidden;
+      margin-bottom: 4px;
     }
 
-    #recordDetailArea > div {
-      padding: 4px 0;
+    .detail-row {
+      display: flex;
+      padding: 10px 14px;
       border-bottom: 1px solid var(--gray-100);
+      font-size: .92rem;
+      gap: 10px;
+      align-items: flex-start;
     }
 
-    #recordDetailArea > div:last-of-type {
-      border-bottom: none;
+    .detail-row:last-child { border-bottom: none; }
+
+    .detail-label {
+      color: var(--gray-500);
+      font-size: .82rem;
+      font-weight: 600;
+      min-width: 72px;
+      padding-top: 1px;
+      flex-shrink: 0;
     }
+
+    .detail-row-absent {
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .absent-box {
+      white-space: pre-wrap;
+      background: #fff;
+      border: 1.5px dashed var(--gray-300);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: .9rem;
+      color: var(--gray-700);
+      line-height: 1.7;
+    }
+
     .char-counter {
       font-size: .75rem;
       color: var(--gray-500);
@@ -539,14 +623,20 @@
     </div>
     
     <div id="menuArea" style="display:none;">
-      <button class="btn btn-primary" id="btnNewForm" onclick="showNewForm()">填寫新點名</button>
-      <button class="btn btn-primary" onclick="showRecords()">查看點名紀錄</button>
-      <p style="text-align:center;margin-top:10px;">
-      <a href="#" id="formFooterLink" onclick="switchAccount(); return false;"
-        style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
-        切換帳號／登出
-      </a>
-    </p>
+      <div class="menu-btn-row">
+        <button class="btn btn-menu-green" id="btnNewForm" onclick="showNewForm()">
+          <span class="menu-btn-icon">✏️</span>填寫新點名
+        </button>
+        <button class="btn btn-menu-blue" onclick="showRecords()">
+          <span class="menu-btn-icon">📋</span>查看點名紀錄
+        </button>
+      </div>
+      <p style="text-align:center;margin-top:14px;">
+        <a href="#" id="menuFooterLink" onclick="switchAccount(); return false;"
+          style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
+          切換帳號／登出
+        </a>
+      </p>
     </div>
 
     <!-- 點名表單 -->
@@ -632,9 +722,9 @@
       <!-- 送出 -->
       <button class="btn btn-submit" id="submitBtn" onclick="submitForm()">確認送出</button>
       <p style="text-align:center;margin-top:10px;">
-        <a href="#" onclick="switchAccount(); return false;"
+        <a href="#" id="formFooterLink" onclick="backFromForm(); return false;"
           style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
-          切換帳號／登出
+          ← 返回
         </a>
       </p>
     </div>
@@ -1055,7 +1145,7 @@
 
         document.getElementById('menuArea').style.display = 'block';
         document.getElementById('btnNewForm').style.display =
-            isOfficer(info.remark) ? 'block' : 'none';
+            isOfficer(info.remark) ? 'flex' : 'none';
         }
 
         /* 7-2. 顯示新表單 */
@@ -1074,8 +1164,12 @@
 
         document.getElementById('submitBtn').textContent = '確認送出';
         document.getElementById('submitBtn').onclick = submitForm;
-        document.getElementById('formFooterLink').textContent = '切換帳號／登出';
-        document.getElementById('formFooterLink').onclick = function() { switchAccount(); return false; };
+        document.getElementById('formFooterLink').textContent = '← 返回選單';
+        document.getElementById('formFooterLink').onclick = function() {
+            document.getElementById('formArea').style.display = 'none';
+            document.getElementById('menuArea').style.display = 'block';
+            return false;
+        };
 
         initCanvas();
         loadStudents(info.club);
@@ -1267,41 +1361,42 @@
         /* 9-4. 顯示紀錄詳細資訊 */
         async function showRecordDetail(date) {
             const info = window._loginInfo;
+
+            document.getElementById('recordsList').style.display = 'none';
+            const detailDiv = document.getElementById('recordDetailArea');
+            detailDiv.style.display = 'block';
+            detailDiv.innerHTML = `<div style="text-align:center;padding:24px 0;color:var(--gray-500);"><div class="spinner" style="margin:0 auto 10px;"></div>載入中…</div>`;
+
             const r = await gasPost({ action: 'getAttendanceDetail', club: info.club, date });
 
             if (r.status === 'error') {
                 alert(r.message || '讀取失敗');
+                detailDiv.style.display = 'none';
+                document.getElementById('recordsList').style.display = 'block';
                 return;
             }
 
-            document.getElementById('recordsList').style.display = 'none';
-
-            const detailDiv = document.getElementById('recordDetailArea');
-            detailDiv.style.display = 'block';
             detailDiv.innerHTML = `
-                <div><strong>社課日期：</strong>${r.date}</div>
-                <div><strong>填寫人：</strong>${r.fillerName}</div>
-                <div><strong>社課內容：</strong>${r.desc}</div>
-                <div><strong>老師出席：</strong>${r.teacherPresent}（代課：${r.subTeacher}）</div>
-                <div><strong>實到人數：</strong>${r.presentCount} 人</div>
-                <div style="margin-top:10px;">
-                <strong>缺席名單：</strong>
-                <div style="white-space:pre-wrap;background:#f4f8fb;padding:10px;border-radius:6px;">${r.absentList}</div>
+                <div class="detail-card">
+                  <div class="detail-row"><span class="detail-label">社課日期</span><span>${r.date}</span></div>
+                  <div class="detail-row"><span class="detail-label">填寫人</span><span>${r.fillerName}</span></div>
+                  <div class="detail-row"><span class="detail-label">社課內容</span><span>${r.desc}</span></div>
+                  <div class="detail-row"><span class="detail-label">老師出席</span><span>${r.teacherPresent}（代課：${r.subTeacher}）</span></div>
+                  <div class="detail-row"><span class="detail-label">實到人數</span><span>${r.presentCount} 人</span></div>
+                  <div class="detail-row detail-row-absent">
+                    <span class="detail-label">缺席名單</span>
+                    <div class="absent-box">${r.absentList}</div>
+                  </div>
                 </div>
+                ${r.editable ? `<button class="btn btn-primary" id="editRecordBtn" style="margin-top:14px;">✏️ 修改點名紀錄</button>` : ''}
                 <p style="text-align:center;margin-top:10px;">
-                <a href="#" onclick="backToDetailList(); return false;"
-                    style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
-                    ← 返回清單
-                </a>
+                  <a href="#" onclick="backToDetailList(); return false;"
+                    style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">← 返回清單</a>
                 </p>
             `;
 
             if (r.editable) {
-                const editBtn = document.createElement('button');
-                editBtn.className = 'btn btn-primary';
-                editBtn.textContent = '修改點名紀錄';
-                editBtn.onclick = () => enterEditMode(r);
-                detailDiv.prepend(editBtn);
+                document.getElementById('editRecordBtn').onclick = () => enterEditMode(r);
             }
         }
 
@@ -1313,6 +1408,7 @@
 
         /* 9-6. 進入修改模式 */
         function enterEditMode(record) {
+            clearDraft();
             window._editingDate = record.date;
             document.getElementById('recordsArea').style.display = 'none';
             document.getElementById('recordDetailArea').style.display = 'none';
@@ -1320,6 +1416,8 @@
 
             const info = window._loginInfo;
             document.getElementById('club').value = info.club || '';
+            document.getElementById('identityClubName').value = (info.clubId || '') + ' ' + (info.club || '');
+            document.getElementById('identityWriter').value = (info.remark || '') + ' ' + (info.name || '');
             document.getElementById('date').value = record.date;
             document.getElementById('date').disabled = true;
             document.getElementById('desc').value = record.desc;
@@ -1343,9 +1441,9 @@
             sigStatus.textContent = '✅ 使用原有簽名（重新簽名可覆蓋）';
             sigStatus.style.display = 'block';
 
-            document.getElementById('submitBtn').textContent = '修改';
-            document.getElementById('submitBtn').onclick = submitForm;  // 沿用同一函式即可，因為都是 append
-            document.getElementById('formFooterLink').textContent = '返回';
+            document.getElementById('submitBtn').textContent = '確認修改';
+            document.getElementById('submitBtn').onclick = submitForm;
+            document.getElementById('formFooterLink').textContent = '← 返回';
             document.getElementById('formFooterLink').onclick = function() {
                 document.getElementById('formArea').style.display = 'none';
                 document.getElementById('date').disabled = false;
