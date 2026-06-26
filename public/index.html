@@ -421,7 +421,50 @@
       text-align: center;
     }
 
-    /* 字元計數提示 */
+    /* 記錄列表 */
+    .record-item {
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--gray-100);
+      background: var(--gray-50);
+      margin-bottom: 8px;
+      font-size: .93rem;
+      color: var(--gray-900);
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .record-item::before {
+      content: '📋';
+      font-size: .9rem;
+      flex-shrink: 0;
+    }
+
+    .record-item:hover {
+      background: var(--blue-lt);
+      border-color: var(--blue);
+    }
+
+    #recordDetailArea {
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      border: 1.5px solid var(--gray-100);
+      padding: 16px;
+      font-size: .93rem;
+      line-height: 1.8;
+    }
+
+    #recordDetailArea > div {
+      padding: 4px 0;
+      border-bottom: 1px solid var(--gray-100);
+    }
+
+    #recordDetailArea > div:last-of-type {
+      border-bottom: none;
+    }
     .char-counter {
       font-size: .75rem;
       color: var(--gray-500);
@@ -485,11 +528,14 @@
         <label>社團</label>
         <input type="text" id="testClub" placeholder="需與現有社團名稱完全一致" maxlength="30">
       </div>
-      <select id="testIdentity" style="margin-top:8px;">
-        <option value="幹部">幹部</option>
-        <option value="社員">社員</option>
-      </select>
-      <button class="btn btn-primary" onclick="submitTeacherAuth()" id="teacherAuthBtn">登入</button>
+      <div class="form-group">
+        <label>身分</label>
+        <select id="testIdentity">
+          <option value="幹部">幹部</option>
+          <option value="社員">社員</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="submitTeacherAuth()" id="teacherAuthBtn" style="margin-top:8px;">登入</button>
     </div>
     
     <div id="menuArea" style="display:none;">
@@ -595,6 +641,10 @@
 
     <!-- 查看點名紀錄 -->
     <div id="recordsArea" style="display:none;">
+      <div id="recordsLoading" style="text-align:center;padding:32px 0;color:var(--gray-500);">
+        <div class="spinner"></div>
+        載入點名紀錄中…
+      </div>
       <div id="recordsList"></div>
       <div id="recordDetailArea" style="display:none;"></div>
       <p style="text-align:center;margin-top:10px;">
@@ -1005,7 +1055,7 @@
 
         document.getElementById('menuArea').style.display = 'block';
         document.getElementById('btnNewForm').style.display =
-            isOfficer(info.remark) ? 'none' : 'inline-block';
+            isOfficer(info.remark) ? 'block' : 'none';
         }
 
         /* 7-2. 顯示新表單 */
@@ -1168,14 +1218,18 @@
         async function showRecords() {
         document.getElementById('menuArea').style.display = 'none';
         document.getElementById('recordsArea').style.display = 'block';
+        document.getElementById('recordsLoading').style.display = 'block';
+        document.getElementById('recordsList').innerHTML = '';
         const info = window._loginInfo;
 
         if (isOfficer(info.remark)) {
             const list = await gasPost({ action: 'getAttendanceList', club: info.club });
+            document.getElementById('recordsLoading').style.display = 'none';
             renderOfficerRecordList(list);
         } else {
             const identity = `${info.class} ${info.no} ${info.name}`;
             const list = await gasPost({ action: 'getMyAttendance', club: info.club, identity });
+            document.getElementById('recordsLoading').style.display = 'none';
             renderMemberRecordList(list);
         }
         }
