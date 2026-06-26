@@ -455,11 +455,12 @@
     /* 主選單左右按鈕 */
     .menu-btn-row {
       display: flex;
+      flex-direction: column;
       gap: 12px;
     }
 
     .btn-menu-green {
-      background: var(--green);
+      background: #4a9b8e;
       color: #fff;
       flex: 1;
       padding: 18px 10px;
@@ -478,7 +479,7 @@
     }
 
     .btn-menu-blue {
-      background: var(--blue);
+      background: #5872a7;
       color: #fff;
       flex: 1;
       padding: 18px 10px;
@@ -497,7 +498,9 @@
     }
 
     .btn-menu-green:hover, .btn-menu-blue:hover { opacity: .85; }
-    .menu-btn-row:has(#btnNewForm[style*="display: none"]) .btn-menu-blue { flex: unset; width: 100%; }
+    .btn-menu-green[style*="display: none"] + .btn-menu-blue {
+      width: 100%;
+    }
 
     .menu-btn-icon {
       font-size: 1.6rem;
@@ -737,12 +740,6 @@
       </div>
       <div id="recordsList"></div>
       <div id="recordDetailArea" style="display:none;"></div>
-      <p style="text-align:center;margin-top:10px;">
-        <a href="#" onclick="backToMenu(); return false;"
-          style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
-          返回選單
-        </a>
-      </p>
     </div>
 
   <footer>開發人員：建中80屆社審會學代 王宥鈞</footer>
@@ -1313,6 +1310,7 @@
         document.getElementById('menuArea').style.display = 'none';
         document.getElementById('recordsArea').style.display = 'block';
         document.getElementById('recordsLoading').style.display = 'block';
+        document.getElementById('recordsBackLink').style.display = 'none';
         document.getElementById('recordsList').innerHTML = '';
         const info = window._loginInfo;
 
@@ -1330,6 +1328,7 @@
 
         /* 9-2. 返回選單 */
         function renderOfficerRecordList(list) {
+            document.getElementById('recordsBackLink').style.display = 'block';
             const div = document.getElementById('recordsList');
             div.innerHTML = '';
             if (!list.length) { div.textContent = '尚無點名紀錄。'; return; }
@@ -1345,6 +1344,7 @@
 
         /* 9-3. 顯示個人出缺列表 */
         function renderMemberRecordList(list) {
+            document.getElementById('recordsBackLink').style.display = 'block';
             const div = document.getElementById('recordsList');
             div.innerHTML = '';
             if (!list.length) { div.textContent = '尚無點名紀錄。'; return; }
