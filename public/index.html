@@ -100,6 +100,11 @@
       padding: 28px 24px;
       width: 100%;
       max-width: 640px;
+
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     /* 身分驗證頁面 */
@@ -729,7 +734,7 @@
       <p style="text-align:center;margin-top:10px;">
         <a href="#" id="formFooterLink" onclick="backFromForm(); return false;"
           style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
-          ← 返回
+          返回
         </a>
       </p>
     </div>
@@ -746,7 +751,7 @@
       <p style="text-align:center;margin-top:14px;display:none;" id="recordsBackLink">
         <a href="#" onclick="backToMenu(); return false;"
           style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
-          ← 返回主選單
+          返回
         </a>
       </p>
     </div>
@@ -888,6 +893,40 @@
       return remark !== '社員' && remark !== '外部登入_社員';
       }
 
+      /* 2-4. 檢查表單是否有變動 */
+      function checkIfFormChanged() {
+          if (!window._originalRecord) return;
+
+          const currentDesc = document.getElementById('desc').value.trim();
+          const currentTeacherPresent = document.getElementById('teacherPresent').value;
+          const currentSubTeacher = document.getElementById('subTeacher').value.trim() || '無';
+
+          // 計算目前勾選完後的缺席名單字串
+          const checkboxes = document.querySelectorAll('.student-cb');
+          let absentList = [];
+          checkboxes.forEach(cb => {
+              if (!cb.checked) absentList.push(cb.value);
+          });
+          const currentAbsentList = absentList.length > 0 ? absentList.join('\n') : '全勤';
+
+          // 檢查簽名是否有變動過
+          const isSignatureChanged = !window._keepOriginalSignature;
+
+          // 比對所有欄位是否跟原始資料一模一樣
+          const hasChanged = 
+              currentDesc !== window._originalRecord.desc ||
+              currentTeacherPresent !== window._originalRecord.teacherPresent ||
+              currentSubTeacher !== window._originalRecord.subTeacher ||
+              currentAbsentList !== (window._originalRecord.absentList || '全勤') ||
+              isSignatureChanged;
+
+          // 如果目前在修改模式，就根據「有沒有改過」來控制按鈕鎖定狀態
+          const btn = document.getElementById('submitBtn');
+          if (btn && btn.textContent === '確認修改') {
+              btn.disabled = !hasChanged;
+          }
+      }
+
       /* 3. 草稿管理 */
       /* 3-1. 儲存草稿 */
       function saveDraft() {
@@ -902,6 +941,7 @@
           .map(cb => cb.id)
       };
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      if (window._originalRecord) checkIfFormChanged();
       }
 
       /* 3-2. 清除填答內容 */
@@ -1041,6 +1081,8 @@
       function clearCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       hasSigned = false;
+      window._keepOriginalSignature = false;
+      if (window._originalRecord) checkIfFormChanged();
       }
 
       /* 5-4. 關閉簽名 Modal */
@@ -1181,6 +1223,10 @@
 
       /* 7-2. 顯示新表單 */
       function showNewForm() {
+        window._originalRecord = null;
+      document.getElementById('submitBtn').disabled = false;
+
+      document.getElementById('menuArea').style.display = 'none';
       document.getElementById('menuArea').style.display = 'none';
       pushPage('form');
       document.getElementById('formArea').style.display = 'block';
@@ -1196,7 +1242,7 @@
 
       document.getElementById('submitBtn').textContent = '確認送出';
       document.getElementById('submitBtn').onclick = submitForm;
-      document.getElementById('formFooterLink').textContent = '← 返回選單';
+      document.getElementById('formFooterLink').textContent = '返回';
       document.getElementById('formFooterLink').onclick = function() {
           document.getElementById('formArea').style.display = 'none';
           document.getElementById('menuArea').style.display = 'block';
@@ -1325,7 +1371,8 @@
           btn.textContent = '確認送出';
           document.getElementById('formArea').style.display = 'none';
           document.getElementById('date').disabled = false;   // 如果是修改模式進來的，記得解鎖日期欄
-          clearDraft();                                        // 如果你做了上一步的草稿快取，順手清掉
+          clearDraft();                                    // 如果你做了上一步的草稿快取，順手清掉
+          window._originalRecord = null;
           showRecords();
       } else {
           alert('送出失敗：' + (res.message || '未知錯誤'));
@@ -1400,6 +1447,7 @@
           const info = window._loginInfo;
 
           document.getElementById('recordsList').style.display = 'none';
+          document.getElementById('recordsBackLink').style.display = 'none';
           pushPage('recordDetail');
           const detailDiv = document.getElementById('recordDetailArea');
           detailDiv.style.display = 'block';
@@ -1428,7 +1476,7 @@
               ${r.editable ? `<button class="btn btn-primary" id="editRecordBtn" style="margin-top:14px;">✏️ 修改點名紀錄</button>` : ''}
               <p style="text-align:center;margin-top:10px;">
                 <a href="#" onclick="backToDetailList(); return false;"
-                  style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">← 返回清單</a>
+                  style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">返回</a>
               </p>
           `;
 
@@ -1441,6 +1489,7 @@
       function backToDetailList() {
           document.getElementById('recordDetailArea').style.display = 'none';
           document.getElementById('recordsList').style.display = 'block';
+          document.getElementById('recordsBackLink').style.display = 'block';
       }
 
       /* 9-6. 進入修改模式 */
@@ -1469,6 +1518,8 @@
               cb.checked = !absentSet.has(cb.value);
               cb.dispatchEvent(new Event('change'));
               });
+              window._originalRecord = record;
+              checkIfFormChanged();
           });
 
           initCanvas();
@@ -1480,10 +1531,11 @@
 
           document.getElementById('submitBtn').textContent = '確認修改';
           document.getElementById('submitBtn').onclick = submitForm;
-          document.getElementById('formFooterLink').textContent = '← 返回';
+          document.getElementById('formFooterLink').textContent = '放棄修改';
           document.getElementById('formFooterLink').onclick = function() {
               document.getElementById('formArea').style.display = 'none';
               document.getElementById('date').disabled = false;
+              window._originalRecord = null;
               showRecords();
               return false;
           };
