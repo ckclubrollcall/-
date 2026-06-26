@@ -465,12 +465,6 @@
       flex-direction: column;
     }
 
-    /* 安全覆蓋：當 JS 取消隱藏時，強制套用 flex 佈局以完美撐滿空間，且不影響原 JS 運作 */
-    #menuArea:not([style*="display: none"]) {
-      display: flex !important;
-      flex-direction: column;
-    }
-
     /* 主選單左右按鈕外層容器 */
     .menu-btn-row {
       display: flex;
