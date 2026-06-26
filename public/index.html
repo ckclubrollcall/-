@@ -1310,54 +1310,52 @@
           document.getElementById('menuArea').style.display = 'none';
           document.getElementById('recordsArea').style.display = 'block';
           document.getElementById('recordsLoading').style.display = 'block';
-          document.getElementById('recordsBackLink').style.display = 'none';
+          // 已經刪除 recordsBackLink.style.display = 'none'
           document.getElementById('recordsList').innerHTML = '';
           const info = window._loginInfo;
 
           if (isOfficer(info.remark)) {
             const list = await gasPost({ action: 'getAttendanceList', club: info.club });
             document.getElementById('recordsLoading').style.display = 'none';
-            if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; document.getElementById('recordsBackLink').style.display = 'block'; return; }
+            if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; return; }
             renderOfficerRecordList(list);
           } else {
             const identity = `${info.class} ${info.no} ${info.name}`;
             const list = await gasPost({ action: 'getMyAttendance', club: info.club, identity });
             document.getElementById('recordsLoading').style.display = 'none';
-            if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; document.getElementById('recordsBackLink').style.display = 'block'; return; }
+            if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; return; }
             renderMemberRecordList(list);
           }
         }
 
         /* 9-2. 返回選單 */
         function renderOfficerRecordList(list) {
-            document.getElementById('recordsBackLink').style.display = 'block';
-            const div = document.getElementById('recordsList');
-            div.innerHTML = '';
-            if (!list.length) { div.textContent = '尚無點名紀錄。'; return; }
+          const div = document.getElementById('recordsList');
+          div.innerHTML = '';
+          if (!list.length) { div.textContent = '尚無點名紀錄。'; return; }
 
-            list.forEach(r => {
-                const item = document.createElement('div');
-                item.className = 'record-item';
-                item.textContent = `${r.date}（填寫人：${r.fillerName}）`;
-                item.onclick = () => showRecordDetail(r.date);
-                div.appendChild(item);
-            });
+          list.forEach(r => {
+              const item = document.createElement('div');
+              item.className = 'record-item';
+              item.textContent = `${r.date}（填寫人：${r.fillerName}）`;
+              item.onclick = () => showRecordDetail(r.date);
+              div.appendChild(item);
+          });
         }
 
         /* 9-3. 顯示個人出缺列表 */
         function renderMemberRecordList(list) {
-            document.getElementById('recordsBackLink').style.display = 'block';
-            const div = document.getElementById('recordsList');
-            div.innerHTML = '';
-            if (!list.length) { div.textContent = '尚無點名紀錄。'; return; }
+          const div = document.getElementById('recordsList');
+          div.innerHTML = '';
+          if (!list.length) { div.textContent = '尚無點名紀錄。'; return; }
 
-            list.forEach(r => {
-                const item = document.createElement('div');
-                item.className = 'record-item';
-                item.textContent = `${r.date}：${r.status}`;
-                item.style.color = r.status === '缺席' ? '#c00' : '#137333';
-                div.appendChild(item);
-            });
+          list.forEach(r => {
+              const item = document.createElement('div');
+              item.className = 'record-item';
+              item.textContent = `${r.date}：${r.status}`;
+              item.style.color = r.status === '缺席' ? '#c00' : '#137333';
+              div.appendChild(item);
+          });
         }
 
         /* 9-4. 顯示紀錄詳細資訊 */
