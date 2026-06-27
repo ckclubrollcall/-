@@ -20,6 +20,14 @@ window.addEventListener('popstate', function(e) {
     } else if (page === 'recordDetail') {
     document.getElementById('recordDetailArea').style.display = 'none';
     document.getElementById('recordsList').style.display = 'block';
+    } else if (page === 'editForm') {
+    // 修改模式中按返回鍵：視同放棄修改，回到紀錄列表
+    document.getElementById('formArea').style.display = 'none';
+    document.getElementById('date').disabled = false;
+    clearDraft();
+    window._originalRecord = null;
+    window._editingDate = null;
+    showRecords();
     } else if (page === 'menu') {
         // 已在選單，不做事
     }
@@ -137,8 +145,14 @@ function getStudentCheckboxes() {
 
 /* 3. 草稿管理 */
 /* 3-1. 儲存草稿 */
+function getDraftMode() {
+    // 區分「新增點名」與「修改特定日期紀錄」，避免草稿互相污染
+    return window._editingDate ? ('edit_' + window._editingDate) : 'new';
+}
+
 function saveDraft() {
     const draft = {
+    mode: getDraftMode(),
     date: document.getElementById('date').value,
     desc: document.getElementById('desc').value,
     teacherPresent: document.getElementById('teacherPresent').value,
@@ -148,7 +162,12 @@ function saveDraft() {
     .filter(cb => !cb.checked)
     .map(cb => cb.id)
     };
+    try {
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch (e) {
+    // 容量超出或寫入失敗時，不讓整個流程中斷，僅放棄這次草稿儲存
+    console.warn('草稿儲存失敗：', e);
+    }
     if (window._originalRecord) checkIfFormChanged();
 }
 
@@ -164,6 +183,13 @@ function restoreDraftIfExists() {
 
     let draft;
     try { draft = JSON.parse(raw); } catch (e) { clearDraft(); return; }
+
+    // 情境不符（例如草稿是上次修改某天的紀錄，但現在是新增點名 / 修改另一天）
+    // 直接視為過期草稿，靜默清除，不要誤套用到目前畫面
+    if (draft.mode !== getDraftMode()) {
+    clearDraft();
+    return;
+    }
 
     if (!confirm('偵測到上次未送出的內容，要還原嗎？')) {
     clearDraft();
@@ -332,6 +358,7 @@ function showLoginButton() {
         const CACHE_TTL = 14 * 24 * 60 * 60 * 1000; // 兩周
         if (cached._ts && (now - cached._ts) < CACHE_TTL) {
         renderForm(cached);
+        fetchUserInfo(cached.email);
         return;
         }
     } catch (e) { /* 快取損毀，清除 */ }
@@ -417,7 +444,11 @@ async function submitTeacherAuth() {
 /* 7-1. 渲染表單 */
 function renderForm(info) {
     const toCache = Object.assign({}, info, { _ts: Date.now() });
+    try {
     localStorage.setItem('cachedUserInfo', JSON.stringify(toCache));
+    } catch (e) {
+    console.warn('使用者資訊快取寫入失敗：', e);
+    }
 
     window._loginInfo = info;
 
@@ -439,6 +470,7 @@ function renderForm(info) {
 /* 7-2. 顯示新表單 */
 function showNewForm() {
     window._originalRecord = null;
+    window._editingDate = null;
     document.getElementById('submitBtn').disabled = false;
 
     document.getElementById('menuArea').style.display = 'none';
@@ -587,6 +619,7 @@ async function submitForm() {
         document.getElementById('date').disabled = false;   // 如果是修改模式進來的，記得解鎖日期欄
         clearDraft();                                    // 如果你做了上一步的草稿快取，順手清掉
         window._originalRecord = null;
+        window._editingDate = null;
         showRecords();
     } else {
         alert('送出失敗：' + (res.message || '未知錯誤'));
@@ -713,6 +746,7 @@ function enterEditMode(record) {
     document.getElementById('recordsArea').style.display = 'none';
     document.getElementById('recordDetailArea').style.display = 'none';
     document.getElementById('formArea').style.display = 'block';
+    pushPage('editForm');
 
     const info = window._loginInfo;
     document.getElementById('club').value = info.club || '';
@@ -750,6 +784,7 @@ function enterEditMode(record) {
     document.getElementById('formArea').style.display = 'none';
     document.getElementById('date').disabled = false;
     window._originalRecord = null;
+    window._editingDate = null;
     showRecords();
     return false;
     };
