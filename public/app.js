@@ -427,3 +427,6 @@ function doPost(e) {
     return jsonResponse({ status: "error", message: "請求處理失敗，請稍後再試" }, corsHeaders);
   }
 }
+if (typeof google !== 'undefined' && google.accounts) {
+    initGoogleSignIn();
+}
