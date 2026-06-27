@@ -731,14 +731,14 @@ async function showRecordDetail(date) {
 
     detailDiv.innerHTML = `
     <div class="detail-card">
-        <div class="detail-row"><span class="detail-label">社課日期</span><span>${r.date}</span></div>
-        <div class="detail-row"><span class="detail-label">填寫人</span><span>${r.fillerName}</span></div>
-        <div class="detail-row"><span class="detail-label">社課內容</span><span>${r.desc}</span></div>
-        <div class="detail-row"><span class="detail-label">老師出席</span><span>${r.teacherPresent}（代課：${r.subTeacher}）</span></div>
-        <div class="detail-row"><span class="detail-label">實到人數</span><span>${r.presentCount} 人</span></div>
+        <div class="detail-row"><span class="detail-label">社課日期</span><span>${escapeHtml(r.date)}</span></div>
+        <div class="detail-row"><span class="detail-label">填寫人</span><span>${escapeHtml(r.fillerName)}</span></div>
+        <div class="detail-row"><span class="detail-label">社課內容</span><span>${escapeHtml(r.desc)}</span></div>
+        <div class="detail-row"><span class="detail-label">老師出席</span><span>${escapeHtml(r.teacherPresent)}（代課：${escapeHtml(r.subTeacher)}）</span></div>
+        <div class="detail-row"><span class="detail-label">實到人數</span><span>${escapeHtml(r.presentCount)} 人</span></div>
         <div class="detail-row detail-row-absent">
         <span class="detail-label">缺席名單</span>
-        <div class="absent-box">${r.absentList}</div>
+        <div class="absent-box">${escapeHtml(r.absentList).replace(/\n/g, '<br>')}</div>
         </div>
     </div>
     ${r.editable ? `<button class="btn btn-primary" id="editRecordBtn" style="margin-top:14px;">✏️ 修改點名紀錄</button>` : ''}
@@ -833,4 +833,15 @@ function goHome() {
     document.getElementById('recordsList').style.display = 'block';
     document.getElementById('date').disabled = false;
     menu.style.display = 'flex';
+}
+
+/* 11. 安全防護工具 */
+function escapeHtml(text) {
+  if (!text) return "";
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
