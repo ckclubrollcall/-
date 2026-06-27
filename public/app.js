@@ -27,7 +27,7 @@ window.addEventListener('popstate', function(e) {
     clearDraft();
     window._originalRecord = null;
     window._editingDate = null;
-    showRecords();
+    showRecords(true);
     } else if (page === 'menu') {
         // 已在選單，不做事
     }
@@ -620,7 +620,7 @@ async function submitForm() {
         clearDraft();                                    // 如果你做了上一步的草稿快取，順手清掉
         window._originalRecord = null;
         window._editingDate = null;
-        showRecords();
+        showRecords(true);
     } else {
         alert('送出失敗：' + (res.message || '未知錯誤'));
         btn.disabled = false;
@@ -635,9 +635,9 @@ async function submitForm() {
 
 /* 9. 查看紀錄 */
 /* 9-1. 顯示紀錄列表 */
-async function showRecords() {
+async function showRecords(skipPush) {
     document.getElementById('menuArea').style.display = 'none';
-    pushPage('records');
+    if (!skipPush) pushPage('records');
     document.getElementById('recordsArea').style.display = 'block';
     document.getElementById('recordsLoading').style.display = 'block';
     document.getElementById('recordsList').innerHTML = '';
@@ -785,7 +785,7 @@ function enterEditMode(record) {
     document.getElementById('date').disabled = false;
     window._originalRecord = null;
     window._editingDate = null;
-    showRecords();
+    showRecords(true);
     return false;
     };
 }
