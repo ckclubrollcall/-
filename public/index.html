@@ -32,10 +32,6 @@
     <!-- CSS -->
   <link rel="stylesheet" href="style.css">
 
-  <!-- 登入按鈕 -->
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-  </script>
-
 </head>
 
 <body>
@@ -257,6 +253,8 @@
   <!-- 拜託別亂玩 -->
     
   <script src="app.js"></script>
+  
+  <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSignIn()"></script>
 </body>
 
 </html>
