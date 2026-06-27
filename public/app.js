@@ -356,9 +356,9 @@ function showLoginButton() {
         const cached = JSON.parse(raw);
         const now = Date.now();
         const CACHE_TTL = 14 * 24 * 60 * 60 * 1000; // 兩周
-        if (cached._ts && (now - cached._ts) < CACHE_TTL) {
+        if (cached._ts && (now - cached._ts) < CACHE_TTL && cached.token) {
         renderForm(cached);
-        fetchUserInfo(cached.email);
+        fetchUserInfo(cached.token);
         return;
         }
     } catch (e) { /* 快取損毀，清除 */ }
@@ -378,31 +378,32 @@ async function handleGoogleCredential(response) {
     document.getElementById('loginArea').style.display = 'none';
     document.getElementById('loadingArea').style.display = 'block';
     try {
-    const base64 = response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64));
-    const email = payload.email;
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    showError('無效的帳號格式，請重試。');
-    return;
-    }
-    await fetchUserInfo(email);
+    await fetchUserInfo(response.credential);
     } catch (e) {
-    showError('登入憑證解析失敗，請重試。');
+    showError('連線至伺服器驗證失敗，請重試。');
     }
 }
 
 /* 6-1-4. 從 GAS 取得使用者資訊 */
-async function fetchUserInfo(email) {
+async function fetchUserInfo(token) {
     try {
-    const res = await gasPost({ action: 'getLoginUser', email });
-    handleUserInfo(res, email);
+    const res = await gasPost({ action: 'getLoginUser', token });
+    if (res && res.error && res.needLogout) {
+        alert(res.msg || '登入狀態已過期，請重新登入。');
+        switchAccount();
+        return;
+    }
+    if (res && !res.token) {
+        res.token = token;
+    }
+    handleUserInfo(res, token);
     } catch (err) {
     showError('無法連線至伺服器，請稍後再試。');
     }
 }
 
 /* 6-1-5. 處理使用者資訊 */
-function handleUserInfo(info, email) {
+function handleUserInfo(info, token) {
     document.getElementById('loadingArea').style.display = 'none';
 
     if (info.needManualLogin) {
@@ -410,7 +411,10 @@ function handleUserInfo(info, email) {
     if (info.defaultEmail) document.getElementById('teacherEmail').value = info.defaultEmail;
     return;
     }
-    if (info.error) { showError('驗證失敗，請重新整理頁面再試。'); return; }
+    if (info.error) {
+    showError(info.msg || '驗證失敗，請重新整理頁面再試。');
+    return;
+    }
     renderForm(info);
 }
 
@@ -451,8 +455,12 @@ function renderForm(info) {
     }
 
     window._loginInfo = info;
+    if (info.token) {
+    window.googleToken = info.token;
+    }
 
     let userFillerInfo = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
+    if (!window.packagedInformation) {
     const tempPackagedInformation = Object.freeze(
     new PackagedUserInfo(info.email || '', userFillerInfo, info.club || '', info.name || '')
     );
@@ -460,6 +468,7 @@ function renderForm(info) {
     Object.defineProperty(window, "packagedInformation", {
     value: tempPackagedInformation, writable: false, configurable: false, enumerable: true,
     });
+    }
 
     document.getElementById('menuArea').style.display = 'flex';
     history.replaceState({ page: 'menu' }, '');
@@ -503,7 +512,11 @@ function showNewForm() {
 /* 8-1-1. 載入社團名單 */
 async function loadStudents(clubName) {
     try {
-    const students = await gasPost({ action: 'getClubMembers', clubName });
+    const students = await gasPost({ action: 'getClubMembers', clubName, token: window.googleToken });
+    if (students && students.error) {
+    document.getElementById('studentList').textContent = students.msg || '無權限載入名單。';
+    return;
+    }
     renderStudents(students);
     } catch (err) {
     document.getElementById('studentList').textContent = '名單載入失敗，請重新整理。';
@@ -644,15 +657,23 @@ async function showRecords(skipPush) {
     const info = window._loginInfo;
 
     if (isOfficer(info.remark)) {
-    const list = await gasPost({ action: 'getAttendanceList', club: info.club });
+    const list = await gasPost({ action: 'getAttendanceList', club: info.club, token: window.googleToken });
     document.getElementById('recordsLoading').style.display = 'none';
+    if (list && list.error) {
+    document.getElementById('recordsList').textContent = list.msg || '讀取失敗，請稍後再試。';
+    return;
+    }
     if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; return; }
     renderOfficerRecordList(list);
     document.getElementById('recordsBackLink').style.display = 'block';
     } else {
     const identity = `${info.class} ${info.no} ${info.name}`;
-    const list = await gasPost({ action: 'getMyAttendance', club: info.club, identity });
+    const list = await gasPost({ action: 'getMyAttendance', club: info.club, identity, token: window.googleToken });
     document.getElementById('recordsLoading').style.display = 'none';
+    if (list && list.error) {
+    document.getElementById('recordsList').textContent = list.msg || '讀取失敗，請稍後再試。';
+    return;
+    }
     if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; return; }
     renderMemberRecordList(list);
     document.getElementById('recordsBackLink').style.display = 'block';
@@ -699,10 +720,10 @@ async function showRecordDetail(date) {
     const detailDiv = document.getElementById('recordDetailArea');
     detailDiv.style.display = 'block';
     detailDiv.innerHTML = `<div style="text-align:center;padding:24px 0;color:var(--gray-500);"><div class="spinner" style="margin:0 auto 10px;"></div>載入中…</div>`;
-    const r = await gasPost({ action: 'getAttendanceDetail', club: info.club, date });
+    const r = await gasPost({ action: 'getAttendanceDetail', club: info.club, date, token: window.googleToken });
 
-    if (r.status === 'error') {
-    alert(r.message || '讀取失敗');
+    if (r.error || r.status === 'error') {
+    alert(r.msg || r.message || '讀取失敗');
     detailDiv.style.display = 'none';
     document.getElementById('recordsList').style.display = 'block';
     return;
