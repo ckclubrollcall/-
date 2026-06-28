@@ -22,11 +22,14 @@
     content="https://raw.githubusercontent.com/ckclubrollcall/-/refs/heads/main/images/%E9%A0%90%E8%A6%BD.png">
   <meta property="og:type" content="website">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self';
-    script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com;
+    script-src 'self' https://accounts.google.com https://apis.google.com;
     style-src 'self' 'unsafe-inline';
     img-src 'self' https://raw.githubusercontent.com https://*.googleusercontent.com data:;
     connect-src https://script.google.com https://accounts.google.com https://script.googleusercontent.com/;
-    frame-src https://accounts.google.com;">
+    frame-src https://accounts.google.com;
+    base-uri 'self';
+    object-src 'none';
+    form-action 'self';">
   
   
     <!-- CSS -->
@@ -36,7 +39,7 @@
 
 <body>
 
-  <header onclick="goHome()" style="cursor:pointer;">
+  <header id="siteHeader" style="cursor:pointer;">
     <div class="logo">
       <img src="https://raw.githubusercontent.com/ckclubrollcall/-/refs/heads/main/images/%E6%A0%A1%E5%BE%BD.png"
         style="width:38px;height:38px;object-fit:contain;" alt="建中校徽">
@@ -84,22 +87,22 @@
           <option value="社員">社員</option>
         </select>
       </div>
-      <button class="btn btn-primary" onclick="submitTeacherAuth()" id="teacherAuthBtn" style="margin-top:8px;">登入</button>
+      <button class="btn btn-primary" id="teacherAuthBtn" style="margin-top:8px;">登入</button>
     </div>
     
     <div id="menuArea" style="display:none;">
       <div class="menu-btn-row">
-        <button class="btn btn-menu-green" id="btnNewForm" onclick="showNewForm()">
+        <button class="btn btn-menu-green" id="btnNewForm">
           <span class="menu-btn-title">開始點名</span>
           <span class="menu-btn-desc">建立並填寫今日的社課點名表單</span>
         </button>
-        <button class="btn btn-menu-blue" onclick="showRecords()">
+        <button class="btn btn-menu-blue" id="btnShowRecords">
           <span class="menu-btn-title">查詢紀錄</span>
           <span class="menu-btn-desc">查看或修改過往的歷史點名資料</span>
         </button>
       </div>
       <p style="text-align:center;margin-top:14px;">
-        <a href="#" id="menuFooterLink" onclick="switchAccount(); return false;"
+        <a href="#" id="menuFooterLink"
           style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
           切換帳號／登出
         </a>
@@ -121,7 +124,7 @@
       <!-- 社課日期 -->
       <div class="form-group">
         <label>社課日期</label>
-        <input type="date" id="date" onchange="saveDraft()">
+        <input type="date" id="date">
       </div>
 
       <!-- 填寫人 -->
@@ -135,15 +138,14 @@
       <!-- 社課內容 -->
       <div class="form-group">
         <label>社課內容簡述</label>
-        <textarea id="desc" placeholder="請簡述今日社課內容…" maxlength="200"
-          oninput="updateCharCounter(this, 'descCounter', 200); saveDraft()"></textarea>
+        <textarea id="desc" placeholder="請簡述今日社課內容…" maxlength="200"></textarea>
         <div class="char-counter" id="descCounter">0 / 200</div>
       </div>
 
       <!-- 指導老師出席 -->
       <div class="form-group">
         <label>指導老師是否出席</label>
-        <select id="teacherPresent" onchange="toggleSubTeacher(); saveDraft()">
+        <select id="teacherPresent">
           <option value="是">是</option>
           <option value="否">否</option>
         </select>
@@ -153,14 +155,14 @@
       <div class="form-group" id="subTeacherGroup" style="display:none;">
         <label>代課老師姓名</label>
         <span class="hint">若無代課老師請保留「無」</span>
-        <input type="text" id="subTeacher" value="無" maxlength="30" onchange="saveDraft()">
+        <input type="text" id="subTeacher" value="無" maxlength="30">
       </div>
 
       <!-- 老師簽名 -->
       <div class="form-group">
         <label>老師簽名</label>
-        <button id="sigOpenBtn" type="button" onclick="openSigModal()">點擊開啟簽名板</button>
-        <div id="sigStatus">✅ 已完成簽名</div>
+        <button id="sigOpenBtn" type="button">點擊開啟簽名板</button>
+        <div id="sigStatus">尚未簽名</div>
       </div>
 
       <!-- 簽名 Modal -->
@@ -169,8 +171,8 @@
           <h3>老師請在此簽名</h3>
           <canvas id="sigCanvas"></canvas>
           <div class="btn-group">
-            <button class="btn btn-red" type="button" onclick="clearCanvas()">清除重簽</button>
-            <button class="btn btn-green" type="button" onclick="closeSigModal()">確認並關閉</button>
+            <button class="btn btn-red" id="sigClearBtn" type="button">清除重簽</button>
+            <button class="btn btn-green" id="sigCloseBtn" type="button">確認並關閉</button>
           </div>
         </div>
       </div>
@@ -186,9 +188,9 @@
       </div>
 
       <!-- 送出 -->
-      <button class="btn btn-submit" id="submitBtn" onclick="submitForm()">確認送出</button>
+      <button class="btn btn-submit" id="submitBtn">確認送出</button>
       <p style="text-align:center;margin-top:10px;">
-        <a href="#" id="formFooterLink" onclick="backFromForm(); return false;"
+        <a href="#" id="formFooterLink"
           style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
           返回
         </a>
@@ -205,7 +207,7 @@
       <div id="recordDetailArea" style="display:none;"></div>
 
       <p style="text-align:center;margin-top:14px;display:none;" id="recordsBackLink">
-        <a href="#" onclick="history.back(); return false;"
+        <a href="#" id="recordsBackAnchor"
           style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
           返回
         </a>
@@ -228,7 +230,7 @@
 
   <script src="app.js"></script>
   
-  <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSignIn()"></script>
+  <script id="googleGsiScript" src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 
 </html>
