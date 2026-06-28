@@ -82,6 +82,27 @@ function renderPage(page, state) {
         };
 
         initCanvas(); // 初始化簽名板
+
+        // 重置表單欄位以防殘留上次填寫的內容
+        document.getElementById('desc').value = '';
+        updateCharCounter(document.getElementById('desc'), 'descCounter', 200);
+        document.getElementById('teacherPresent').value = '是';
+        toggleSubTeacher();
+        document.getElementById('subTeacher').value = '無';
+
+        // 重置老師簽名板與狀態提示
+        hasSigned = false;
+        window._keepOriginalSignature = false;
+        if (canvas && ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        const sigStatus = document.getElementById('sigStatus');
+        if (sigStatus) {
+            sigStatus.textContent = '✅ 已完成簽名';
+            sigStatus.style.display = 'none';
+        }
+
+        window._draftPrompted = false; // 重置草稿提示旗標
         loadStudents(info.club); // 載入社團名單
     } else if (page === 'editForm') {
         // 進入修改已送出表單的模式
@@ -210,7 +231,7 @@ async function fetchUserInfo(token) {
     try {
         const res = await gasPost({ action: 'getLoginUser', token });
         if (res && res.error && res.needLogout) {
-            alert(res.msg || '登入狀態已過期，請重新登入。');
+            await showAlert(res.msg || '登入狀態已過期，請重新登入。');
             switchAccount(); // 強制登出
             return;
         }
@@ -253,9 +274,9 @@ async function submitTeacherAuth() {
     const club = document.getElementById('testClub').value.trim();
     const identity = document.getElementById('testIdentity').value;
 
-    if (!email || !password || !club) { alert('錯誤: 請完整填寫所有欄位！'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('錯誤: Email 格式不正確！'); return; }
-    if (club.length > 30) { alert('錯誤: 社團名稱過長！'); return; }
+    if (!email || !password || !club) { await showAlert('錯誤: 請完整填寫所有欄位！'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { await showAlert('錯誤: Email 格式不正確！'); return; }
+    if (club.length > 30) { await showAlert('錯誤: 社團名稱過長！'); return; }
 
     const btn = document.getElementById('teacherAuthBtn');
     btn.disabled = true; btn.textContent = '驗證中…';
@@ -264,13 +285,13 @@ async function submitTeacherAuth() {
         // 呼叫 GAS 後台驗證測試密碼與尋找對應社團
         const res = await gasPost({ action: 'verifyTestLogin', email, password, club, identity });
         btn.disabled = false; btn.textContent = '登入';
-        if (res.error) { alert('❌ ' + res.msg); return; }
+        if (res.error) { await showAlert('❌ ' + res.msg); return; }
         
         document.getElementById('teacherAuthArea').style.display = 'none';
         renderForm(res); // 登入成功，將規格化後的資料渲染主頁面
     } catch (err) {
         btn.disabled = false; btn.textContent = '登入';
-        alert('連線失敗，請稍後再試。');
+        await showAlert('連線失敗，請稍後再試。');
     }
 }
 
@@ -416,7 +437,7 @@ async function showRecordDetail(date, skipPush) {
     const r = await gasPost({ action: 'getAttendanceDetail', club: info.club, date, token: window.googleToken });
 
     if (r.error || r.status === 'error') {
-        alert(r.msg || r.message || '讀取失敗');
+        await showAlert(r.msg || r.message || '讀取失敗');
         detailDiv.style.display = 'none';
         document.getElementById('recordsList').style.display = 'block';
         return;
@@ -468,15 +489,38 @@ function showNewForm() {
  * 非同步從 Google 試算表載入該社團的學生名單
  */
 async function loadStudents(clubName) {
+    const cacheKey = 'students_' + clubName;
+    const cached = localStorage.getItem(cacheKey);
+    let cachedData = null;
+
+    if (cached) {
+        try {
+            cachedData = JSON.parse(cached);
+            renderStudents(cachedData);
+        } catch (e) {
+            localStorage.removeItem(cacheKey);
+        }
+    }
+
     try {
         const students = await gasPost({ action: 'getClubMembers', clubName, token: window.googleToken });
         if (students && students.error) {
-            document.getElementById('studentList').textContent = students.msg || '無權限載入名單。';
+            if (!cachedData) {
+                document.getElementById('studentList').textContent = students.msg || '無權限載入名單。';
+            }
             return;
         }
-        renderStudents(students);
+        
+        localStorage.setItem(cacheKey, JSON.stringify(students));
+        
+        // 如果沒有快取資料，或者新抓取的資料與快取不一致，才重新渲染
+        if (!cachedData || JSON.stringify(students) !== JSON.stringify(cachedData)) {
+            renderStudents(students);
+        }
     } catch (err) {
-        document.getElementById('studentList').textContent = '名單載入失敗，請重新整理。';
+        if (!cachedData) {
+            document.getElementById('studentList').textContent = '名單載入失敗，請重新整理。';
+        }
     }
 }
 
@@ -549,21 +593,21 @@ async function submitForm() {
     const desc = descEl.value.trim();
 
     // 防呆驗證：必須輸入社課大綱與老師簽名
-    if (!desc) { alert('錯誤: 請填寫社課內容簡述！'); return; }
-    if (desc.length > MAX_DESC_LEN) { alert(`錯誤: 社課內容不可超過 ${MAX_DESC_LEN} 字！`); return; }
-    if (!hasSigned) { alert('錯誤: 請完成老師簽名！'); return; }
+    if (!desc) { await showAlert('錯誤: 請填寫社課內容簡述！'); return; }
+    if (desc.length > MAX_DESC_LEN) { await showAlert(`錯誤: 社課內容不可超過 ${MAX_DESC_LEN} 字！`); return; }
+    if (!hasSigned) { await showAlert('錯誤: 請完成老師簽名！'); return; }
 
     const subTeacherEl = document.getElementById('subTeacher');
     const subTeacherVal = subTeacherEl.value.trim() || '無';
     if (subTeacherVal.length > MAX_TEACHER_LEN) {
-        alert(`錯誤: 代課老師姓名不可超過 ${MAX_TEACHER_LEN} 字！`);
+        await showAlert(`錯誤: 代課老師姓名不可超過 ${MAX_TEACHER_LEN} 字！`);
         return;
     }
 
     const dateInput = document.getElementById('date');
     const dateVal = dateInput.value;
     if (!dateVal || (!dateInput.disabled && (dateVal < dateInput.min || dateVal > dateInput.max))) {
-        alert('錯誤: 日期超出允許範圍！');
+        await showAlert('錯誤: 日期超出允許範圍！');
         return;
     }
 
@@ -601,30 +645,29 @@ async function submitForm() {
 
     try {
         const res = await gasPost({ action: 'submitAttendance', data });
-        if (res === 'SUCCESS' || res?.status !== 'error') {
-            alert('✅ 送出成功！');
+        if (res === 'SUCCESS') {
+            await showAlert('✅ 送出成功！');
             btn.disabled = false;
             btn.textContent = '確認送出';
-            clearDraft(); // 成功送出後清除草稿
+            clearDraft();
             window._originalRecord = null;
             window._editingDate = null;
             document.getElementById('date').disabled = false;
             
             if (isEditing) {
-                // 如果是修改表單，回退 2 頁，回到紀錄列表畫面
                 history.go(-2);
             } else {
-                // 如果是新填表單，覆蓋當前歷史頁面並跳往紀錄列表畫面
                 history.replaceState({ page: 'records' }, '');
                 renderPage('records');
             }
         } else {
-            alert('送出失敗：' + (res.message || '未知錯誤'));
+            // res 必定是 { status: "error", message: "..." }
+            await showAlert('送出失敗：' + (res.message || res.msg || '未知錯誤'));
             btn.disabled = false;
             btn.textContent = isEditing ? '確認修改' : '確認送出';
         }
     } catch (err) {
-        alert('連線失敗，請稍後再試。');
+        await showAlert('連線失敗，請稍後再試。');
         btn.disabled = false;
         btn.textContent = isEditing ? '確認修改' : '確認送出';
     }
@@ -640,6 +683,7 @@ async function submitForm() {
 function enterEditMode(record, skipPush) {
     clearDraft();
     window._editingDate = record.date;
+    window._draftPrompted = false; // 重置草稿提示旗標
     if (!skipPush) {
         history.pushState({ page: 'editForm', record: record }, ''); // 記錄在歷史中
     }
@@ -685,7 +729,9 @@ function enterEditMode(record, skipPush) {
         clearDraft();
         window._originalRecord = null;
         window._editingDate = null;
-        history.back(); // 放棄修改則直接返回
+        document.getElementById('date').disabled = false;
+        history.replaceState({ page: 'records' }, '');
+        renderPage('records');
         return false;
     };
 }
@@ -916,9 +962,20 @@ function clearDraft() {
 /**
  * 還原上一次未完成的草稿（如果有偵測到的話）
  */
-function restoreDraftIfExists() {
+async function restoreDraftIfExists() {
+    if (window._draftPrompted) return;
+
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return;
+
+    // 檢查目前是否確實在填寫或修改表單頁面，以防在其他頁面彈出提示
+    const currentPage = history.state?.page;
+    if (currentPage !== 'form' && currentPage !== 'editForm') {
+        return;
+    }
+
+    // 標記已提示過，避免重複彈出
+    window._draftPrompted = true;
 
     let draft;
     try { draft = JSON.parse(raw); } catch (e) { clearDraft(); return; }
@@ -929,7 +986,7 @@ function restoreDraftIfExists() {
         return;
     }
 
-    if (!confirm('偵測到上次未送出的內容，要還原嗎？')) {
+    if (!(await showConfirm('偵測到上次未送出的內容，要還原嗎？'))) {
         clearDraft();
         return;
     }
@@ -998,4 +1055,64 @@ function showError(msg) {
  */
 function isOfficer(remark) {
     return remark !== '社員' && remark !== '外部登入_社員';
+}
+
+/**
+ * 自訂的 Alert 彈出式視窗，返回 Promise 物件
+ */
+function showAlert(message, title = "提示") {
+    return new Promise((resolve) => {
+        const dialog = document.getElementById('customDialog');
+        const titleEl = document.getElementById('customDialogTitle');
+        const messageEl = document.getElementById('customDialogMessage');
+        const cancelBtn = document.getElementById('customDialogCancelBtn');
+        const confirmBtn = document.getElementById('customDialogConfirmBtn');
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        
+        cancelBtn.style.display = 'none';
+        confirmBtn.className = 'btn btn-primary';
+        confirmBtn.textContent = '確定';
+
+        dialog.classList.add('open');
+
+        confirmBtn.addEventListener('click', function() {
+            dialog.classList.remove('open');
+            resolve(true);
+        }, { once: true });
+    });
+}
+
+/**
+ * 自訂的 Confirm 彈出式確認視窗，返回 Promise 物件 (resolve 為 true 或 false)
+ */
+function showConfirm(message, title = "確認動作") {
+    return new Promise((resolve) => {
+        const dialog = document.getElementById('customDialog');
+        const titleEl = document.getElementById('customDialogTitle');
+        const messageEl = document.getElementById('customDialogMessage');
+        const cancelBtn = document.getElementById('customDialogCancelBtn');
+        const confirmBtn = document.getElementById('customDialogConfirmBtn');
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+
+        cancelBtn.style.display = 'block';
+        cancelBtn.textContent = '取消';
+        confirmBtn.className = 'btn btn-primary';
+        confirmBtn.textContent = '確認';
+
+        dialog.classList.add('open');
+
+        confirmBtn.addEventListener('click', function() {
+            dialog.classList.remove('open');
+            resolve(true);
+        }, { once: true });
+
+        cancelBtn.addEventListener('click', function() {
+            dialog.classList.remove('open');
+            resolve(false);
+        }, { once: true });
+    });
 }
