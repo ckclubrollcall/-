@@ -350,6 +350,10 @@ async function showRecords(skipPush) {
     if (!skipPush) {
         history.pushState({ page: 'records' }, ''); // 寫入瀏覽器上一頁記錄
     }
+    ['loadingArea', 'loginArea', 'teacherAuthArea', 'menuArea', 'formArea', 'recordsArea'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
     document.getElementById('menuArea').style.display = 'none';
     document.getElementById('recordsArea').style.display = 'block';
     document.getElementById('recordsLoading').style.display = 'block'; // 顯示轉圈圈動畫
@@ -687,6 +691,7 @@ function enterEditMode(record, skipPush) {
     if (!skipPush) {
         history.pushState({ page: 'editForm', record: record }, ''); // 記錄在歷史中
     }
+    document.getElementById('menuArea').style.display = 'none';
     document.getElementById('recordsArea').style.display = 'none';
     document.getElementById('recordDetailArea').style.display = 'none';
     document.getElementById('formArea').style.display = 'block';
