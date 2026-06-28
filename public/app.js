@@ -544,10 +544,14 @@ function showNewForm() {
     renderPage('form');
 }
 
+const _loadStudentsInFlight = {};
+
 /**
  * 非同步從 Google 試算表載入該社團的學生名單
  */
-async function loadStudents(clubName) {
+function loadStudents(clubName) {
+    if (_loadStudentsInFlight[clubName]) return _loadStudentsInFlight[clubName];
+
     const cacheKey = 'students_' + clubName;
     const cached = getSessionItem(cacheKey);
     let cachedData = null;
@@ -567,36 +571,36 @@ async function loadStudents(clubName) {
         if (!cachedData) {
             document.getElementById('studentList').textContent = '驗證憑證遺失，請重新整理頁面。';
         }
-        return;
+        return Promise.resolve();
     }
 
-    // [DEBUG] 顯示目前傳送的 token 類型與社團名稱
-    console.log('[DEBUG] loadStudents club:', JSON.stringify(clubName));
-    console.log('[DEBUG] token type:', token ? (token.startsWith('TEST_') ? 'TEST_TOKEN' : 'Google ID Token') : 'null');
-    console.log('[DEBUG] _loginInfo.club:', window._loginInfo ? JSON.stringify(window._loginInfo.club) : 'undefined');
-    console.log('[DEBUG] _loginInfo.token prefix:', window._loginInfo && window._loginInfo.token ? window._loginInfo.token.substring(0, 8) : 'undefined');
-
-    try {
-        const students = await gasPost({ action: 'getClubMembers', clubName, token });
-        console.log('[DEBUG] getClubMembers response:', JSON.stringify(students));
-        if (students && (students.error || students.status === 'error')) {
-            if (!cachedData) {
-                document.getElementById('studentList').textContent = students.msg || students.message || '無權限載入名單。';
+    const promise = (async () => {
+        try {
+            const students = await gasPost({ action: 'getClubMembers', clubName, token });
+            if (students && (students.error || students.status === 'error')) {
+                if (!cachedData) {
+                    document.getElementById('studentList').textContent = students.msg || students.message || '無權限載入名單。';
+                }
+                return;
             }
-            return;
+
+            setSessionItem(cacheKey, JSON.stringify(students));
+
+            // 如果沒有快取資料，或者新抓取的資料與快取不一致，才重新渲染
+            if (!cachedData || JSON.stringify(students) !== JSON.stringify(cachedData)) {
+                renderStudents(students);
+            }
+        } catch (err) {
+            if (!cachedData) {
+                document.getElementById('studentList').textContent = '名單載入失敗，請重新整理。';
+            }
+        } finally {
+            delete _loadStudentsInFlight[clubName];
         }
-        
-        setSessionItem(cacheKey, JSON.stringify(students));
-        
-        // 如果沒有快取資料，或者新抓取的資料與快取不一致，才重新渲染
-        if (!cachedData || JSON.stringify(students) !== JSON.stringify(cachedData)) {
-            renderStudents(students);
-        }
-    } catch (err) {
-        if (!cachedData) {
-            document.getElementById('studentList').textContent = '名單載入失敗，請重新整理。';
-        }
-    }
+    })();
+
+    _loadStudentsInFlight[clubName] = promise;
+    return promise;
 }
 
 /**
