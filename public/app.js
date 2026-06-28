@@ -322,11 +322,16 @@ function renderForm(info) {
         });
     }
 
-    document.getElementById('menuArea').style.display = 'flex';
-    history.replaceState({ page: 'menu' }, ''); // 置換目前的歷史頁面為首頁 menu
-    
     // 只有幹部或管理員才能看到「開始點名」按鈕，社員只能查詢
     document.getElementById('btnNewForm').style.display = isOfficer(info.remark) ? 'flex' : 'none';
+
+    // 若使用者已離開主選單（例如已進入表單或紀錄頁），
+    // 不重新顯示 menuArea，避免背景 fetchUserInfo 完成後蓋掉目前頁面
+    const currentPage = history.state?.page;
+    if (currentPage && currentPage !== 'menu') return;
+
+    document.getElementById('menuArea').style.display = 'flex';
+    history.replaceState({ page: 'menu' }, ''); // 置換目前的歷史頁面為首頁 menu
 }
 
 /**
