@@ -424,9 +424,8 @@ footer {
 }
 
 /* 主選單滿版與彈性佈局（最終隱藏安全版） */
-/* 主選單滿版與彈性佈局（最終隱藏安全版） */
 #menuArea {
-    display: none; /* 預設徹底隱藏 */
+    display: none; /* 預設徹底隱藏，避免閃爍 */
     flex: 1;       /* 顯示時自動撐滿 card 剩餘的高度 */
     width: 100%;
     flex-direction: column;
@@ -563,4 +562,24 @@ footer {
 .char-counter.warn {
     color: var(--red);
     font-weight: 600;
+}
+
+/* 自訂對話框樣式 */
+#customDialog .modal-content {
+    max-width: 400px;
+    text-align: center;
+    border: 1px solid var(--gray-300);
+    box-shadow: 0 10px 25px rgba(44, 62, 74, 0.15);
+    animation: modalReveal 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalReveal {
+    from {
+        opacity: 0;
+        transform: scale(0.93);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
