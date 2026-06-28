@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // 0. 系統規格設定與安全常數
 // ==========================================
 var SECURITY = {
@@ -23,10 +23,12 @@ function sanitize(val, maxLen) {
   var s = String(val)
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "") // 去除不可見的控制字元
     .replace(/[<>]/g, "")      // 去除大於小於符號，防範網頁腳本注入
-    .replace(/[=+\-@|`]/g, function(c) {   // 若開頭為試算表公式字元，前面加零寬字元避免公式執行
-      return "\u200B" + c;
-    })
     .trim();
+  // Google Sheets 公式注入只在儲存格第一個字元為公式符號時才會執行，
+  // 只在開頭加零寬字元即可，避免對中間合法的連字號、@ 等字元做不必要替換。
+  if (/^[=+\-@|`]/.test(s)) {
+    s = "\u200B" + s;
+  }
   if (maxLen && s.length > maxLen) s = s.slice(0, maxLen);
   return s;
 }
@@ -66,7 +68,8 @@ function isOfficer(remark) {
 }
 
 /**
- * 限制同一用戶的點名頻率，限制 60 秒內不得重複提交
+ * 限制同一用戶的點名頻率，限制 60 秒內不得重複提交。
+ * 呼叫端需在外層持有 LockService，確保讀寫時間戳為原子操作。
  */
 function checkAndSetCooldown(email) {
   var props  = PropertiesService.getScriptProperties();
@@ -250,11 +253,6 @@ function authenticateRequest(token) {
     return { error: false, user: user };
   }
 
-  user = getLoginUserExternal(email);
-  if (user.needManualLogin && !isTestUser) {
-    return { error: false, user: { needManualLogin: true, defaultEmail: email } };
-  }
-
   return { error: false, user: user };
 }
 
@@ -266,15 +264,14 @@ function authenticateRequest(token) {
  * 取得「系統設定」試算表 B1 格中所儲存的手寫簽名存檔雲端資料夾 ID
  */
 function getSignFolderId() {
-  try {
-    var ss   = SpreadsheetApp.getActiveSpreadsheet();
-    var raw  = ss.getSheetByName("系統設定").getRange("B1").getValue();
-    if (!raw) throw new Error("「系統設定」工作表的 B1 儲存格不可以是空白！");
-    return parseDriveId(raw);
-  } catch (e) {
-    SpreadsheetApp.getUi().alert("❌ 系統設定錯誤：" + e.message);
-    return null;
+  var ss  = SpreadsheetApp.getActiveSpreadsheet();
+  var raw = ss.getSheetByName("系統設定").getRange("B1").getValue();
+  if (!raw) {
+    // 拋出例外讓呼叫端（submitAttendance）捕捉並回傳有意義的錯誤訊息；
+    // 不使用 getUi().alert()，因為 Web API 環境不支援 UI 互動。
+    throw new Error("簽名資料夾未設定：請在「系統設定」工作表 B1 儲存格填入雲端硬碟資料夾 ID。");
   }
+  return parseDriveId(raw);
 }
 
 // ==========================================
@@ -561,99 +558,132 @@ function getMyAttendance(club, identity) {
 function submitAttendance(data) {
   if (!data) return { status: "error", message: "資料不完整" };
 
-  var safeEmail = "";
-  if (data.email && data.email !== "") {
-    if (!isValidEmail(data.email)) return { status: "error", message: "Email 格式不正確" };
-    safeEmail = data.email;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) {
+    return { status: "error", message: "系統忙碌，請稍後再試" };
   }
 
-  // 驗證社課日期範圍限制
-  if (!isValidDate(data.date)) {
-    return { status: "error", message: "日期格式不正確或超出允許範圍" };
-  }
-
-  // 提交頻率防護 (防止重複狂按)
-  var cooldownKey = safeEmail || (data.fillerInfo || "anonymous");
-  if (!checkAndSetCooldown(cooldownKey)) {
-    return { status: "error", message: "送出過於頻繁，請稍後再試" };
-  }
-
-  // 清洗過濾文字內容，截斷長度防止資料爆炸
-  var safeDesc          = sanitize(data.desc,           SECURITY.MAX_DESC_LEN);
-  var safeSubTeacher    = sanitize(data.subTeacher,     SECURITY.MAX_TEACHER_LEN);
-  var safeClub          = sanitize(data.club,           SECURITY.MAX_CLUB_LEN);
-  var safeFillerInfo    = sanitize(data.fillerInfo,     60);
-  var safeFillerName    = sanitize(data.fillerName,     20);
-  var safeTeacherPresent = (data.teacherPresent === "否") ? "否" : "是";
-
-  var safePresentCount = parseInt(data.presentCount, 10);
-  if (isNaN(safePresentCount) || safePresentCount < 0) safePresentCount = 0;
-
-  var safeAbsentList = "全勤";
-  if (data.absentList && data.absentList !== "全勤") {
-    var absentLines = String(data.absentList).split("\n").slice(0, 200);
-    safeAbsentList  = absentLines
-      .map(function(line) { return sanitize(line, 30); })
-      .filter(function(line) { return line.length > 0; })
-      .join("\n");
-    if (!safeAbsentList) safeAbsentList = "全勤";
-  }
-
-  var signatureData = "";
-  if (data.signature === 'KEEP') {
-    // 沿用原有簽名：從最新的一筆歷史紀錄拿回原本的雲端連結
-    var existing = getLatestRowsByClub(safeClub);
-    var existingRow = existing[data.date];
-    signatureData = existingRow ? existingRow.signatureUrl : '無簽名';
-  } else {
-    if (data.signature && data.signature.length > 200000) {
-      return { status: "error", message: "簽名檔過大，請重新簽名" };
+  try {
+    var safeEmail = "";
+    if (data.email && data.email !== "") {
+      if (!isValidEmail(data.email)) return { status: "error", message: "Email 格式不正確" };
+      safeEmail = data.email;
     }
-    if (data.signature && data.signature !== "") {
-      if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(data.signature)) {
-        return { status: "error", message: "簽名格式不正確" };
+
+    if (!isValidDate(data.date)) {
+      return { status: "error", message: "日期格式不正確或超出允許範圍" };
+    }
+
+    var safeDesc           = sanitize(data.desc,       SECURITY.MAX_DESC_LEN);
+    var safeSubTeacher     = sanitize(data.subTeacher, SECURITY.MAX_TEACHER_LEN);
+    var safeClub           = sanitize(data.club,       SECURITY.MAX_CLUB_LEN);
+    var safeFillerInfo     = sanitize(data.fillerInfo, 60);
+    var safeFillerName     = sanitize(data.fillerName, 20);
+    var safeTeacherPresent = (data.teacherPresent === "否") ? "否" : "是";
+
+    if (!safeDesc || !safeClub) {
+      return { status: "error", message: "資料不完整" };
+    }
+
+    var members = getClubMembers(safeClub);
+    if (!members.length) {
+      return { status: "error", message: "找不到該社團正式名單" };
+    }
+
+    var memberMap = {};
+    members.forEach(function(m) {
+      var identity = sanitize(m.class + " " + m.no + " " + m.name, 30);
+      memberMap[identity] = identity;
+    });
+
+    var absentIdentities = [];
+    if (data.absentList && data.absentList !== "全勤") {
+      var seen = {};
+      var absentLines = String(data.absentList).split("\n").map(function(line) {
+        return sanitize(line, 30);
+      }).filter(function(line) {
+        return line.length > 0;
+      });
+
+      for (var i = 0; i < absentLines.length; i++) {
+        var identity = absentLines[i];
+        if (!memberMap[identity]) {
+          return { status: "error", message: "缺席名單包含非本社團學生或格式不正確" };
+        }
+        if (!seen[identity]) {
+          seen[identity] = true;
+          absentIdentities.push(identity);
+        }
       }
-      signatureData = data.signature;
     }
+
+    var safeAbsentList = absentIdentities.length ? absentIdentities.join("\n") : "全勤";
+    var safePresentCount = members.length - absentIdentities.length;
+
+    var cooldownKey = safeEmail || (data.fillerInfo || "anonymous");
+    if (!checkAndSetCooldown(cooldownKey)) {
+      return { status: "error", message: "送出過於頻繁，請稍後再試" };
+    }
+
+    var signatureData = "";
+    if (data.signature === 'KEEP') {
+      var existing = getLatestRowsByClub(safeClub);
+      var existingRow = existing[data.date];
+      signatureData = existingRow ? existingRow.signatureUrl : '無簽名';
+    } else {
+      if (data.signature && data.signature.length > 200000) {
+        return { status: "error", message: "簽名檔過大，請重新簽名" };
+      }
+      if (data.signature && data.signature !== "") {
+        if (!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(data.signature)) {
+          return { status: "error", message: "簽名格式不正確" };
+        }
+        signatureData = data.signature;
+      }
+    }
+
+    var ss    = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName("點名紀錄");
+    var formattedDate = new Date(data.date.replace(/-/g, "/"));
+
+    var fileUrl = "無簽名";
+    if (signatureData === '無簽名' || signatureData === '') {
+      fileUrl = "無簽名";
+    } else if (signatureData.startsWith('https://')) {
+      fileUrl = signatureData;
+    } else {
+      var folderId;
+      try {
+        folderId = getSignFolderId();
+      } catch (e) {
+        return { status: "error", message: e.message };
+      }
+      var folder = DriveApp.getFolderById(folderId);
+      var base64 = signatureData.split(",")[1];
+      var fileName = data.date + "_" + safeClub + "_老師簽名.png";
+      var blob = Utilities.newBlob(Utilities.base64Decode(base64), "image/png", fileName);
+      var file = folder.createFile(blob);
+      fileUrl = file.getUrl();
+    }
+
+    sheet.appendRow([
+      new Date(),
+      safeFillerInfo,
+      safeClub,
+      formattedDate,
+      safeFillerName,
+      safeDesc,
+      safeTeacherPresent,
+      safeSubTeacher,
+      safePresentCount,
+      safeAbsentList,
+      fileUrl
+    ]);
+
+    return "SUCCESS";
+  } finally {
+    lock.releaseLock();
   }
-
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName("點名紀錄");
-  var formattedDate = new Date(data.date.replace(/-/g, "/"));
-
-  // 老師手寫簽名上傳處理
-  var fileUrl = "無簽名";
-  if (signatureData === '無簽名' || signatureData === '') {
-    fileUrl = "無簽名";
-  } else if (signatureData.startsWith('https://')) {
-    fileUrl = signatureData; // 沿用原本的連結
-  } else {
-    // 將 Base64 格式轉回 PNG 圖檔，並寫入指定 Google Drive 資料夾
-    var folderId = getSignFolderId();
-    var folder = DriveApp.getFolderById(folderId);
-    var base64 = signatureData.split(",")[1];
-    var fileName = data.date + "_" + safeClub + "_老師簽名.png";
-    var blob = Utilities.newBlob(Utilities.base64Decode(base64), "image/png", fileName);
-    var file = folder.createFile(blob);
-    fileUrl = file.getUrl(); // 取得檔案的公開/內部連結
-  }
-
-  // 附加新列至點名紀錄試算表
-  sheet.appendRow([
-    new Date(),            // A: 填寫日期時間
-    safeFillerInfo,        // B: 填答人學號資訊
-    safeClub,              // C: 社團官方名稱
-    formattedDate,         // D: 點名社課日期
-    safeFillerName,        // E: 填寫人姓名
-    safeDesc,              // F: 社課內容簡述
-    safeTeacherPresent,    // G: 指導老師出席與否
-    safeSubTeacher,        // H: 代課老師姓名
-    safePresentCount,      // I: 出席總人數
-    safeAbsentList,        // J: 換行缺席名單
-    fileUrl                // K: 簽名檔 Drive 網址
-  ]);
-
-  return "SUCCESS";
 }
 
 // ==========================================
@@ -661,9 +691,10 @@ function submitAttendance(data) {
 // ==========================================
 
 /**
- * 格式化與回傳 JSON 格式字串並附加 CORS 標頭，允許跨網域存取
+ * 格式化與回傳 JSON 格式字串。
+ * Apps Script ContentService 無法在這裡可靠附加自訂 CORS 標頭；安全邊界依賴 token 驗證與授權檢查。
  */
-function jsonResponse(data, headers) {
+function jsonResponse(data) {
   var output = ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
@@ -682,14 +713,8 @@ function doGet(e) {
  * 接收從網頁前端發過來的 POST 請求，並根據 action 指令轉發至對應處理函式。
  */
 function doPost(e) {
-  var corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type"
-  };
-
   if (!e || !e.postData) {
-    return jsonResponse({ status: "error", message: "沒有收到任何資料" }, corsHeaders);
+    return jsonResponse({ status: "error", message: "沒有收到任何資料" });
   }
 
   try {
@@ -703,7 +728,7 @@ function doPost(e) {
       var token = (action === "submitAttendance") ? (req.data && req.data.token) : req.token;
       var auth = authenticateRequest(token);
       if (auth.error) {
-        return jsonResponse(auth, corsHeaders);
+        return jsonResponse(auth);
       }
 
       // API Action 路由對照表
@@ -711,15 +736,15 @@ function doPost(e) {
         result = auth.user;
       } else if (action === "getClubMembers") {
         if (auth.user.club !== req.clubName && auth.user.remark !== "管理員") {
-          return jsonResponse({ status: "error", message: "無權限查看此社團名單" }, corsHeaders);
+          return jsonResponse({ status: "error", message: "無權限查看此社團名單" });
         }
         result = getClubMembers(req.clubName);
       } else if (action === "submitAttendance") {
         if (auth.user.club !== req.data.club) {
-          return jsonResponse({ status: "error", message: "無權限為此社團提交點名資料" }, corsHeaders);
+          return jsonResponse({ status: "error", message: "無權限為此社團提交點名資料" });
         }
         if (!isOfficer(auth.user.remark)) {
-          return jsonResponse({ status: "error", message: "只有社團幹部才能提交或修改點名資料" }, corsHeaders);
+          return jsonResponse({ status: "error", message: "只有社團幹部才能提交或修改點名資料" });
         }
         req.data.email = auth.user.email;
         req.data.fillerInfo = auth.user.fillerInfo;
@@ -728,30 +753,30 @@ function doPost(e) {
         result = submitAttendance(req.data);
       } else if (action === "getAttendanceList") {
         if (auth.user.club !== req.club) {
-          return jsonResponse({ status: "error", message: "無權限查看此社團的紀錄" }, corsHeaders);
+          return jsonResponse({ status: "error", message: "無權限查看此社團的紀錄" });
         }
         if (!isOfficer(auth.user.remark)) {
-          return jsonResponse({ status: "error", message: "只有幹部才能查看社團點名列表" }, corsHeaders);
+          return jsonResponse({ status: "error", message: "只有幹部才能查看社團點名列表" });
         }
         result = getAttendanceList(req.club);
       } else if (action === "getAttendanceDetail") {
         if (auth.user.club !== req.club) {
-          return jsonResponse({ status: "error", message: "無權限查看此社團的紀錄詳情" }, corsHeaders);
+          return jsonResponse({ status: "error", message: "無權限查看此社團的紀錄詳情" });
         }
         if (!isOfficer(auth.user.remark)) {
-          return jsonResponse({ status: "error", message: "無權限查看此紀錄詳情" }, corsHeaders);
+          return jsonResponse({ status: "error", message: "無權限查看此紀錄詳情" });
         }
         result = getAttendanceDetail(req.club, req.date);
       } else if (action === "getMyAttendance") {
         if (auth.user.club !== req.club) {
-          return jsonResponse({ status: "error", message: "無權限查看此社團的出缺席紀錄" }, corsHeaders);
+          return jsonResponse({ status: "error", message: "無權限查看此社團的出缺席紀錄" });
         }
         var expectedIdentity = auth.user.class + " " + auth.user.no + " " + auth.user.name;
         if (auth.user.id === "TEST_USER") {
           expectedIdentity = req.identity;
         }
         if (expectedIdentity.trim() !== req.identity.trim()) {
-          return jsonResponse({ status: "error", message: "無權限查看他人出缺席紀錄" }, corsHeaders);
+          return jsonResponse({ status: "error", message: "無權限查看他人出缺席紀錄" });
         }
         result = getMyAttendance(req.club, req.identity);
       } else {
@@ -759,10 +784,10 @@ function doPost(e) {
       }
     }
 
-    return jsonResponse(result, corsHeaders);
+    return jsonResponse(result);
 
   } catch (err) {
-    return jsonResponse({ status: "error", message: "請求處理失敗，請稍後再試" }, corsHeaders);
+    return jsonResponse({ status: "error", message: "請求處理失敗，請稍後再試" });
   }
 }
 

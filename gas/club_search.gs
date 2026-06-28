@@ -182,8 +182,9 @@ function renderClubReport(e) {
   dates.forEach(d => {
     var r = recordByDate[d];
     var sigValue = r[10] ? r[10].toString().trim() : "";
-    // 若有簽名雲端連結，轉換為超連結公式「📄 查看簽名」
-    var sigDisplay = sigValue.startsWith("http") ? '=HYPERLINK("' + sigValue + '", "📄 查看簽名")' : sigValue;
+    var safeSigUrl = /^https:\/\/(?:drive\.google\.com|docs\.google\.com|drive\.usercontent\.google\.com|[a-z0-9.-]*googleusercontent\.com)\//i.test(sigValue);
+    // 只有確認為 Google/Drive HTTPS 簽名連結時才產生公式，避免把任意字串拼進 HYPERLINK。
+    var sigDisplay = safeSigUrl ? '=HYPERLINK("' + sigValue.replace(/"/g, '""') + '", "📄 查看簽名")' : sigValue;
     courseData.push([d, r[1], r[5], r[6], r[7], sigDisplay]);
   });
     
