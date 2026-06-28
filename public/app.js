@@ -14,6 +14,7 @@ const MAX_TEACHER_LEN = 30;   // 代課老師姓名最大字數
 const ALLOWED_LOOKBACK_DAYS = 5; // 允許點名補填或修改的天數範圍（含今天往前 5 天）
 const DRAFT_KEY = 'attendanceDraft'; // 暫存草稿在瀏覽器內的金鑰名稱
 const USER_CACHE_KEY = 'cachedUserInfo';
+const TOKEN_VERSION = 'v2'; // 修正 UTF-8 編碼後升版，強制淘汰舊 TEST_TOKEN
 
 // 封裝登入使用者資訊的類別，保護內部變數不被外部隨意修改
 class PackagedUserInfo {
@@ -207,7 +208,9 @@ function showLoginButton() {
             const cached = JSON.parse(raw);
             const now = Date.now();
             const CACHE_TTL = 14 * 24 * 60 * 60 * 1000; // 快取有效期限：14 天
-            if (cached._ts && (now - cached._ts) < CACHE_TTL && cached.token) {
+            // 版本號不符時淘汰舊 token（例如 UTF-8 編碼修正後舊 TEST_TOKEN 已失效）
+            const validVersion = cached._tv === TOKEN_VERSION;
+            if (cached._ts && (now - cached._ts) < CACHE_TTL && cached.token && validVersion) {
                 renderForm(cached); // 渲染主選單
                 fetchUserInfo(cached.token); // 向後台確認 Token 狀態
                 return;
@@ -321,7 +324,7 @@ async function submitTeacherAuth() {
  * 成功驗證後，準備渲染主頁面選單，並寫入本機快取快顯
  */
 function renderForm(info) {
-    const toCache = Object.assign({}, info, { _ts: Date.now() });
+    const toCache = Object.assign({}, info, { _ts: Date.now(), _tv: TOKEN_VERSION });
     try {
         setSessionItem(USER_CACHE_KEY, JSON.stringify(toCache)); // 僅儲存在目前瀏覽器工作階段
     } catch (e) {}
@@ -567,8 +570,15 @@ async function loadStudents(clubName) {
         return;
     }
 
+    // [DEBUG] 顯示目前傳送的 token 類型與社團名稱
+    console.log('[DEBUG] loadStudents club:', JSON.stringify(clubName));
+    console.log('[DEBUG] token type:', token ? (token.startsWith('TEST_') ? 'TEST_TOKEN' : 'Google ID Token') : 'null');
+    console.log('[DEBUG] _loginInfo.club:', window._loginInfo ? JSON.stringify(window._loginInfo.club) : 'undefined');
+    console.log('[DEBUG] _loginInfo.token prefix:', window._loginInfo && window._loginInfo.token ? window._loginInfo.token.substring(0, 8) : 'undefined');
+
     try {
         const students = await gasPost({ action: 'getClubMembers', clubName, token });
+        console.log('[DEBUG] getClubMembers response:', JSON.stringify(students));
         if (students && (students.error || students.status === 'error')) {
             if (!cachedData) {
                 document.getElementById('studentList').textContent = students.msg || students.message || '無權限載入名單。';

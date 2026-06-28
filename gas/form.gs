@@ -181,9 +181,10 @@ function generateTestToken(userInfo) {
     remark: userInfo.remark,
     exp:    expiry
   });
-  var signature = Utilities.computeHmacSignature(Utilities.MacAlgorithm.HMAC_SHA_256, payload, TEST_TOKEN_SECRET);
+  // 明確指定 UTF-8，確保中文字不會在 Base64 編碼時損毀
+  var signature = Utilities.computeHmacSignature(Utilities.MacAlgorithm.HMAC_SHA_256, payload, TEST_TOKEN_SECRET, Utilities.Charset.UTF_8);
   var sigStr = Utilities.base64Encode(signature);
-  return "TEST_" + Utilities.base64Encode(payload) + "." + sigStr;
+  return "TEST_" + Utilities.base64Encode(payload, Utilities.Charset.UTF_8) + "." + sigStr;
 }
 
 /**
@@ -194,8 +195,9 @@ function verifyTestToken(token) {
   try {
     var parts = token.substring(5).split(".");
     if (parts.length !== 2) return null;
-    var payloadStr = Utilities.newBlob(Utilities.base64Decode(parts[0])).getDataAsString();
-    var expectedSig = Utilities.computeHmacSignature(Utilities.MacAlgorithm.HMAC_SHA_256, payloadStr, TEST_TOKEN_SECRET);
+    // 明確指定 UTF-8，與 generateTestToken 的編碼方式一致
+    var payloadStr = Utilities.newBlob(Utilities.base64Decode(parts[0])).getDataAsString("UTF-8");
+    var expectedSig = Utilities.computeHmacSignature(Utilities.MacAlgorithm.HMAC_SHA_256, payloadStr, TEST_TOKEN_SECRET, Utilities.Charset.UTF_8);
     var expectedSigStr = Utilities.base64Encode(expectedSig);
     if (parts[1] !== expectedSigStr) return null; // 憑證遭人修改
 
@@ -736,6 +738,7 @@ function doPost(e) {
         result = auth.user;
       } else if (action === "getClubMembers") {
         if (auth.user.club !== req.clubName && auth.user.remark !== "管理員") {
+          logToSheet("[DEBUG] getClubMembers 拒絕 | user.club=" + JSON.stringify(auth.user.club) + " | req.clubName=" + JSON.stringify(req.clubName) + " | remark=" + JSON.stringify(auth.user.remark) + " | token_prefix=" + (req.token ? req.token.substring(0,8) : "null"));
           return jsonResponse({ status: "error", message: "無權限查看此社團名單" });
         }
         result = getClubMembers(req.clubName);
