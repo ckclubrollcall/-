@@ -214,6 +214,18 @@
   </div>
   <footer>開發人員：建中80屆社審會學代 王宥鈞</footer>
     
+  <!-- 自訂彈出式視窗 Dialog Modal -->
+  <div id="customDialog" class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px; text-align: center;">
+      <h3 id="customDialogTitle" style="font-size: 1.15rem; margin-bottom: 12px; font-weight: 700;">提示</h3>
+      <p id="customDialogMessage" style="font-size: 0.95rem; color: var(--gray-700); margin-bottom: 20px; line-height: 1.5; white-space: pre-line;"></p>
+      <div class="btn-group" id="customDialogBtnGroup">
+        <button class="btn btn-gray" id="customDialogCancelBtn" type="button" style="padding: 10px;">取消</button>
+        <button class="btn btn-primary" id="customDialogConfirmBtn" type="button" style="padding: 10px;">確認</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
   
   <script src="https://accounts.google.com/gsi/client" async defer onload="initGoogleSignIn()"></script>
