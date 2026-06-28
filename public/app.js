@@ -70,7 +70,8 @@ function renderPage(page, state) {
         document.getElementById('fillerName').value = info.name || '';
         document.getElementById('fillerInfo').value = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
         document.getElementById('identityClubName').value = (info.clubId || '') + ' ' + (info.club || '');
-        document.getElementById('identityWriter').value = (info.remark || '') + ' ' + (info.name || '');
+        const displayRemark = (info.remark || '').replace(/^外部登入_/, '');
+        document.getElementById('identityWriter').value = displayRemark + ' ' + (info.name || '');
 
         // 設定下方按鈕功能為「送出新點名表」
         document.getElementById('submitBtn').textContent = '確認送出';
@@ -511,8 +512,17 @@ async function loadStudents(clubName) {
         }
     }
 
+    // 確保 Token 已存在（外部登入時 googleToken 可能尚未寫入）
+    const token = window.googleToken || (window._loginInfo && window._loginInfo.token);
+    if (!token) {
+        if (!cachedData) {
+            document.getElementById('studentList').textContent = '驗證憑證遺失，請重新整理頁面。';
+        }
+        return;
+    }
+
     try {
-        const students = await gasPost({ action: 'getClubMembers', clubName, token: window.googleToken });
+        const students = await gasPost({ action: 'getClubMembers', clubName, token });
         if (students && students.error) {
             if (!cachedData) {
                 document.getElementById('studentList').textContent = students.msg || '無權限載入名單。';
@@ -705,7 +715,8 @@ function enterEditMode(record, skipPush) {
     // 預填寫原有表單資料
     document.getElementById('club').value = info.club || '';
     document.getElementById('identityClubName').value = (info.clubId || '') + ' ' + (info.club || '');
-    document.getElementById('identityWriter').value = (info.remark || '') + ' ' + (info.name || '');
+    const displayRemarkEdit = (info.remark || '').replace(/^外部登入_/, '');
+    document.getElementById('identityWriter').value = displayRemarkEdit + ' ' + (info.name || '');
     document.getElementById('date').value = record.date;
     document.getElementById('date').disabled = true; // 鎖定日期不可修改
     document.getElementById('desc').value = record.desc;
