@@ -20,7 +20,11 @@ function renderClubReport(e) {
   var clubName = e.value;
     
   // 1. 清空舊報表區域的內容與格式
-  sheet.getRange("B4:Z").clear();
+  var maxRows = sheet.getMaxRows();
+  var maxCols = sheet.getMaxColumns();
+  if (maxRows > 3 && maxCols > 1) {
+    sheet.getRange(4, 2, maxRows - 3, maxCols - 1).clear();
+  }
   
   if (!clubName) return;
 
@@ -98,6 +102,10 @@ function renderClubReport(e) {
     absentBlocks.forEach(block => {
       var blockRows = block.data.length;
       if (blockRows > maxRows) maxRows = blockRows;
+
+      if (currentCols + 4 > sheet.getMaxColumns()) {
+        sheet.insertColumnsAfter(sheet.getMaxColumns(), 5); // 動態增加 5 欄
+      }
 
       // 產生日期標題列
       sheet.getRange(currentRow, currentCols, 1, 4).merge()
