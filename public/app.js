@@ -310,7 +310,7 @@ async function submitTeacherAuth() {
         // 呼叫 GAS 後台驗證測試密碼與尋找對應社團
         const res = await gasPost({ action: 'verifyTestLogin', email, password, club, identity });
         btn.disabled = false; btn.textContent = '登入';
-        if (res.error) { await showAlert('❌ ' + res.msg); return; }
+        if (res.error) { await showAlert('錯誤：' + res.msg); return; }
         
         document.getElementById('teacherAuthArea').style.display = 'none';
         renderForm(res); // 登入成功，將規格化後的資料渲染主頁面
@@ -508,7 +508,7 @@ async function showRecordDetail(date, skipPush) {
             <div class="absent-box">${escapeHtml(r.absentList).replace(/\n/g, '<br>')}</div>
         </div>
     </div>
-    ${r.editable ? `<button class="btn btn-primary" id="editRecordBtn" style="margin-top:14px;">✏️ 修改點名紀錄</button>` : ''}
+    ${r.editable ? `<button class="btn btn-primary" id="editRecordBtn" style="margin-top:14px;">修改</button>` : ''}
     <p style="text-align:center;margin-top:10px;">
         <a href="#" id="recordDetailBackLink"
         style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">返回</a>
@@ -664,6 +664,21 @@ function getStudentCheckboxes() {
 }
 
 /**
+ * 顯示／隱藏送出中遮罩，避免使用者在傳送過程中誤觸畫面
+ */
+function showSubmitOverlay(text) {
+    const overlay = document.getElementById('submitOverlay');
+    if (!overlay) return;
+    document.getElementById('submitOverlayText').textContent = text || '資料傳送中，請勿關閉網頁…';
+    overlay.classList.add('open');
+}
+
+function hideSubmitOverlay() {
+    const overlay = document.getElementById('submitOverlay');
+    if (overlay) overlay.classList.remove('open');
+}
+
+/**
  * 點名表單資料提交 (包含防呆檢查與資料封裝)
  */
 async function submitForm() {
@@ -719,13 +734,15 @@ async function submitForm() {
 
     btn.disabled = true;
     btn.textContent = '資料傳送中，請勿關閉網頁…';
+    showSubmitOverlay('資料傳送中，請勿關閉網頁…');
 
     const isEditing = !!window._editingDate; // 判斷是否為編輯模式
 
     try {
         const res = await gasPost({ action: 'submitAttendance', data });
         if (res === 'SUCCESS') {
-            await showAlert('✅ 送出成功！');
+            hideSubmitOverlay();
+            await showAlert('送出成功！');
             btn.disabled = false;
             btn.textContent = '確認送出';
             clearDraft();
@@ -741,11 +758,13 @@ async function submitForm() {
             }
         } else {
             // res 必定是 { status: "error", message: "..." }
+            hideSubmitOverlay();
             await showAlert('送出失敗：' + (res.message || res.msg || '未知錯誤'));
             btn.disabled = false;
             btn.textContent = isEditing ? '確認修改' : '確認送出';
         }
     } catch (err) {
+        hideSubmitOverlay();
         await showAlert('連線失敗，請稍後再試。');
         btn.disabled = false;
         btn.textContent = isEditing ? '確認修改' : '確認送出';
@@ -799,7 +818,7 @@ function enterEditMode(record, skipPush) {
     hasSigned = true;
     window._keepOriginalSignature = true; // 標示為沿用原老師簽名
     const sigStatus = document.getElementById('sigStatus');
-    sigStatus.textContent = '✅ 使用原有簽名（重新簽名可覆蓋）';
+    sigStatus.textContent = '已完成簽名（使用原有簽名）';
     sigStatus.style.display = 'block';
 
     // 重新綁定「確認修改」按鈕與下方「放棄修改」事件
@@ -996,7 +1015,7 @@ function clearCanvas() {
 function closeSigModal() {
     document.getElementById('sigModal').classList.remove('open');
     if (!window._keepOriginalSignature) {
-        document.getElementById('sigStatus').textContent = '✅ 已完成簽名';
+        document.getElementById('sigStatus').textContent = '已完成簽名';
     }
     document.getElementById('sigStatus').style.display = hasSigned ? 'block' : 'none';
     saveDraft(); // 順便將目前的簽名板資料暫存於草稿
