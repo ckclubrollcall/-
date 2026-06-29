@@ -54,7 +54,7 @@
     <!-- 身分驗證頁面 -->
     <div id="loadingArea" style="display:none;">
       <div class="spinner"></div>
-      正在搜尋身分，請稍後...
+      驗證中...
     </div>
 
     <!-- 登入Google帳號頁面 -->
@@ -183,7 +183,7 @@
       <div class="form-group">
         <label>點名區 <span id="attendCount" style="font-weight:400;color:var(--gray-500);font-size:.85rem;"></span></label>
         <div id="studentList" style="text-align:left;padding:24px;color:var(--gray-500);">
-          <div class="spinner" style="margin:0 auto 10px;"></div>載入名單中…
+          <div class="spinner" style="margin:0 auto 10px;"></div>載入中…
         </div>
       </div>
 
@@ -201,7 +201,7 @@
     <div id="recordsArea" style="display:none;">
       <div id="recordsLoading" style="text-align:center;padding:32px 0;color:var(--gray-500);">
         <div class="spinner"></div>
-        載入點名紀錄中…
+        載入中…
       </div>
       <div id="recordsList"></div>
       <div id="recordDetailArea" style="display:none;"></div>
@@ -216,6 +216,14 @@
   </div>
   <footer>開發人員：建中80屆社審會學代 王宥鈞</footer>
     
+  <!-- 送出中遮罩層，防止重複點擊與誤觸 -->
+  <div id="submitOverlay" class="submit-overlay">
+    <div class="submit-overlay-box">
+      <div class="spinner"></div>
+      <p id="submitOverlayText">資料傳送中，請勿關閉網頁…</p>
+    </div>
+  </div>
+
   <!-- 自訂彈出式視窗 Dialog Modal -->
   <div id="customDialog" class="modal-overlay">
     <div class="modal-content" style="max-width: 400px; text-align: center;">
