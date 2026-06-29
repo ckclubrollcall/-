@@ -737,43 +737,29 @@ function doPost(e) {
       if (action === "getLoginUser") {
         result = auth.user;
       } else if (action === "getClubMembers") {
-        if (auth.user.club !== req.clubName && auth.user.remark !== "管理員") {
-          logToSheet("[DEBUG] getClubMembers 拒絕 | user.club=" + JSON.stringify(auth.user.club) + " | req.clubName=" + JSON.stringify(req.clubName) + " | remark=" + JSON.stringify(auth.user.remark) + " | token_prefix=" + (req.token ? req.token.substring(0,8) : "null"));
-          return jsonResponse({ status: "error", message: "無權限查看此社團名單" });
-        }
-        result = getClubMembers(req.clubName);
+        var targetClub = (auth.user.remark === "管理員") ? req.clubName : auth.user.club;
+        result = getClubMembers(targetClub);
       } else if (action === "submitAttendance") {
-        if (auth.user.club !== req.data.club) {
-          return jsonResponse({ status: "error", message: "無權限為此社團提交點名資料" });
-        }
         if (!isOfficer(auth.user.remark)) {
           return jsonResponse({ status: "error", message: "只有社團幹部才能提交或修改點名資料" });
         }
         req.data.email = auth.user.email;
         req.data.fillerInfo = auth.user.fillerInfo;
         req.data.fillerName = auth.user.name;
-        
+        req.data.club = auth.user.club;
+
         result = submitAttendance(req.data);
       } else if (action === "getAttendanceList") {
-        if (auth.user.club !== req.club) {
-          return jsonResponse({ status: "error", message: "無權限查看此社團的紀錄" });
-        }
         if (!isOfficer(auth.user.remark)) {
           return jsonResponse({ status: "error", message: "只有幹部才能查看社團點名列表" });
         }
-        result = getAttendanceList(req.club);
+        result = getAttendanceList(auth.user.club);
       } else if (action === "getAttendanceDetail") {
-        if (auth.user.club !== req.club) {
-          return jsonResponse({ status: "error", message: "無權限查看此社團的紀錄詳情" });
-        }
         if (!isOfficer(auth.user.remark)) {
           return jsonResponse({ status: "error", message: "無權限查看此紀錄詳情" });
         }
-        result = getAttendanceDetail(req.club, req.date);
+        result = getAttendanceDetail(auth.user.club, req.date);
       } else if (action === "getMyAttendance") {
-        if (auth.user.club !== req.club) {
-          return jsonResponse({ status: "error", message: "無權限查看此社團的出缺席紀錄" });
-        }
         var expectedIdentity = auth.user.class + " " + auth.user.no + " " + auth.user.name;
         if (auth.user.id === "TEST_USER") {
           expectedIdentity = req.identity;
@@ -781,7 +767,7 @@ function doPost(e) {
         if (expectedIdentity.trim() !== req.identity.trim()) {
           return jsonResponse({ status: "error", message: "無權限查看他人出缺席紀錄" });
         }
-        result = getMyAttendance(req.club, req.identity);
+        result = getMyAttendance(auth.user.club, req.identity);
       } else {
         result = { status: "error", message: "未知的操作指令" };
       }
