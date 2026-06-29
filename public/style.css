@@ -564,6 +564,43 @@ footer {
     font-weight: 600;
 }
 
+/* 送出中遮罩層 */
+.submit-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(44, 62, 74, .45);
+    backdrop-filter: blur(1px);
+    z-index: 950;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+}
+
+.submit-overlay.open {
+    display: flex;
+}
+
+.submit-overlay-box {
+    background: rgba(255, 255, 255, .96);
+    border-radius: 14px;
+    padding: 28px 32px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, .25);
+    max-width: 320px;
+}
+
+.submit-overlay-box .spinner {
+    margin: 0 auto 14px;
+}
+
+.submit-overlay-box p {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    line-height: 1.5;
+}
+
 /* 自訂對話框樣式 */
 #customDialog .modal-content {
     max-width: 400px;
