@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -507,6 +508,7 @@
   <button class="tab-btn" data-tab="records">查詢紀錄</button>
   <button class="tab-btn" data-tab="edit">修改紀錄</button>
   <button class="tab-btn" data-tab="backend">後台工具</button>
+  <button class="tab-btn" data-tab="sheets">試算表公式</button>
   <button class="tab-btn" data-tab="api">API 對照</button>
 </div>
 
@@ -535,8 +537,8 @@
       <p>多層防護：Google Token 驗證、HMAC 加密簽章、60 秒冷卻防刷、XSS 防護、公式注入阻擋、權限隔離。</p>
     </div>
     <div class="ov-card">
-      <h3>試算表結構 (有關gas 共 6 張工作表)</h3>
-      <p><strong>原始名單</strong>：全校社團學生<br><strong>點名紀錄</strong>：歷次點名資料<br><strong>系統設定</strong>：資料夾路徑與測試帳號<br><strong>統計總表</strong>：社團對照表<br><strong>查詢面板</strong>：互動式報表<br><strong>系統日誌</strong>：錯誤紀錄</p>
+      <h3>試算表結構（底層 + 公式 + 報表）</h3>
+      <p><strong>底層資料</strong>：原始名單、點名紀錄、系統設定、系統日誌<br><strong>公式彙整</strong>：原始社團、統計總表、當日缺曠、校內出席老師紀錄、校外出席老師紀錄<br><strong>互動報表</strong>：查詢面板（由腳本動態產生）</p>
     </div>
     <div class="ov-card">
       <h3>使用者身分</h3>
@@ -559,8 +561,8 @@
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">② 前台呼叫 <span class="fn-tag blue">gasPost()</span></div><div class="step-detail">將操作指令與資料打包成 JSON，透過 HTTP POST 送到 Google Apps Script</div></div></div>
           <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">③ 後台 <span class="fn-tag green">doPost()</span> 接收請求</div><div class="step-detail">解析 JSON，根據 action 欄位判斷要執行哪個功能</div></div></div>
           <div class="step"><div class="step-dot orange"></div><div class="step-content"><div class="step-title">④ 身分驗證 <span class="fn-tag orange">authenticateRequest()</span></div><div class="step-detail">檢查 Google Token 或測試 Token 是否有效，確認使用者身分</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">⑤ 執行對應功能</div><div class="step-detail">讀取或寫入 Google 試算表、上傳簽名到 Google Drive</div></div></div>
-          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">⑥ 回傳結果 JSON</div><div class="step-detail">將處理結果（成功/失敗/資料）回傳給前台</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">⑤ 執行對應功能</div><div class="step-detail">讀取或寫入 Google 試算表、上傳簽名到 Google Drive</div></div></div>
+          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">⑥ 回傳結果 JSON</div><div class="step-detail">將處理結果（成功/失敗/資料）回傳給前台</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">⑦ 前台更新畫面</div><div class="step-detail">根據回傳結果顯示成功訊息、錯誤提示、或渲染資料列表</div></div></div>
         </div>
       </div>
@@ -600,16 +602,16 @@
     <!-- Step 2: Check Cache -->
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon cyan"></div>
+        <div class="node-icon blue"></div>
         <div class="node-text"><div class="node-label">檢查本機快取</div><div class="node-sub">如果之前已登入過，嘗試快速進入</div></div>
         <span class="node-badge badge-front">前台</span>
         <div class="node-chevron">▸</div>
       </div>
       <div class="node-children">
         <div class="step-list">
-          <div class="step"><div class="step-dot cyan"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">showLoginButton()</span> 檢查 sessionStorage</div><div class="step-detail">讀取瀏覽器分頁快取中儲存的登入資訊（有效期 14 天）</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">有有效快取 → 直接進入主選單</div><div class="step-detail"><span class="fn-tag blue">renderForm(cached)</span> 先用快取顯示畫面，同時在背景呼叫 <span class="fn-tag green">fetchUserInfo()</span> 向後台重新確認身分</div></div></div>
-          <div class="step"><div class="step-dot red"></div><div class="step-content"><div class="step-title">無快取或已過期 → 顯示 Google 登入按鈕</div><div class="step-detail">呼叫 Google API 渲染漂亮的「使用 Google 帳號登入」按鈕</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">showLoginButton()</span> 檢查 sessionStorage</div><div class="step-detail">讀取瀏覽器分頁快取中儲存的登入資訊（有效期 14 天）</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">有有效快取 → 直接進入主選單</div><div class="step-detail"><span class="fn-tag blue">renderForm(cached)</span> 先用快取顯示畫面，同時在背景呼叫 <span class="fn-tag green">fetchUserInfo()</span> 向後台重新確認身分</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">無快取或已過期 → 顯示 Google 登入按鈕</div><div class="step-detail">呼叫 Google API 渲染漂亮的「使用 Google 帳號登入」按鈕</div></div></div>
         </div>
       </div>
     </div>
@@ -626,8 +628,8 @@
         <div class="step-list">
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">handleGoogleCredential()</span> 收到 Google 回傳</div><div class="step-detail">取得加密的身分 Token (credential)，顯示「驗證中...」畫面</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">fetchUserInfo(token)</span> 送出驗證請求</div><div class="step-detail">呼叫 <span class="fn-tag blue">gasPost({action: 'getLoginUser'})</span> 將 Token 送往後台</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">verifyIdToken()</span> 驗證 Token</div><div class="step-detail">向 Google 官方 API 確認 Token 的 Client ID 與 email 是否合法</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getLoginUserExternal(email)</span> 查學生</div><div class="step-detail">用 email 的學號在「原始名單」試算表中找到學生的班級、座號、姓名、社團、身分</div></div></div>
+          <div class="step"><div class="step-dot orange"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">verifyIdToken()</span> 驗證 Token</div><div class="step-detail">向 Google 官方 API 確認 Token 的 Client ID 與 email 是否合法</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getLoginUserExternal(email)</span> 查學生</div><div class="step-detail">用 email 的學號在「原始名單」試算表中找到學生的班級、座號、姓名、社團、身分</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">handleUserInfo()</span> 處理回傳結果</div><div class="step-detail">• 找到學生 → 進入主選單<br>• 非建中信箱 → 顯示測試登入表單<br>• 驗證失敗 → 顯示錯誤訊息</div></div></div>
         </div>
       </div>
@@ -636,7 +638,7 @@
     <!-- Step 4: Test Login -->
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon yellow"></div>
+        <div class="node-icon blue"></div>
         <div class="node-text"><div class="node-label">測試帳號登入（非建中帳號）</div><div class="node-sub">外部老師或測試人員手動輸入密碼</div></div>
         <span class="node-badge badge-both">前台 → 後台</span>
         <div class="node-chevron">▸</div>
@@ -645,7 +647,7 @@
         <div class="step-list">
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">使用者填寫 Email、密碼、社團名稱、身分</div><div class="step-detail">在測試登入表單中輸入管理員預先設定的帳號密碼</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">submitTeacherAuth()</span> 前端格式檢查</div><div class="step-detail">檢查 Email 格式、欄位非空、社團名稱長度等基本驗證</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">verifyTestLogin()</span></div><div class="step-detail">• 冷卻防護：60 秒內不可重複嘗試<br>• 比對密碼的 SHA-256 雜湊值<br>• 模糊比對社團名稱（自動容錯）</div></div></div>
+          <div class="step"><div class="step-dot orange"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">verifyTestLogin()</span></div><div class="step-detail">• 冷卻防護：60 秒內不可重複嘗試<br>• 比對密碼的 SHA-256 雜湊值<br>• 模糊比對社團名稱（自動容錯）</div></div></div>
           <div class="step"><div class="step-dot orange"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">generateTestToken()</span> 產生加密憑證</div><div class="step-detail">用 HMAC-SHA256 簽章，將身分資料加密成 Token（有效期 14 天）</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">renderForm()</span> 進入主選單</div><div class="step-detail">儲存登入狀態到快取，顯示功能按鈕</div></div></div>
         </div>
@@ -655,7 +657,7 @@
     <!-- Step 5: Main Menu -->
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon green"></div>
+        <div class="node-icon blue"></div>
         <div class="node-text"><div class="node-label">進入主選單</div><div class="node-sub">依身分顯示不同按鈕</div></div>
         <span class="node-badge badge-front">前台</span>
         <div class="node-chevron">▸</div>
@@ -663,8 +665,8 @@
       <div class="node-children">
         <div class="step-list">
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">renderForm(info)</span> 初始化主選單</div><div class="step-detail">寫入 sessionStorage 快取、建立防竄改的全域身分物件 <span class="fn-tag blue">PackagedUserInfo</span></div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">幹部身分 → 顯示兩個按鈕</div><div class="step-detail">「開始點名」（建立新表單）＋「查詢紀錄」（查看歷史）</div></div></div>
-          <div class="step"><div class="step-dot red"></div><div class="step-content"><div class="step-title">社員身分 → 只顯示「查詢紀錄」</div><div class="step-detail">社員無法點名，只能查看自己的出缺席狀況</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">幹部身分 → 顯示兩個按鈕</div><div class="step-detail">「開始點名」（建立新表單）＋「查詢紀錄」（查看歷史）</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">社員身分 → 只顯示「查詢紀錄」</div><div class="step-detail">社員無法點名，只能查看自己的出缺席狀況</div></div></div>
         </div>
       </div>
     </div>
@@ -701,7 +703,7 @@
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon green"></div>
+        <div class="node-icon purple"></div>
         <div class="node-text"><div class="node-label">載入社團學生名單</div><div class="node-sub">從後台讀取該社團所有成員</div></div>
         <span class="node-badge badge-both">前台 → 後台</span>
         <div class="node-chevron">▸</div>
@@ -709,10 +711,10 @@
       <div class="node-children">
         <div class="step-list">
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">loadStudents(club)</span> 開始載入</div><div class="step-detail">先檢查本機快取，有的話先用快取顯示；同時向後台請求最新資料</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getClubMembers(clubName)</span></div><div class="step-detail">讀取「原始名單」試算表，篩選出該社團學生，照班級與座號排序</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getClubMembers(clubName)</span></div><div class="step-detail">讀取「原始名單」試算表，篩選出該社團學生，照班級與座號排序</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">renderStudents()</span> 渲染名單</div><div class="step-detail">為每位學生產生一個「打勾方框」(checkbox)，預設為紅色（缺席）</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">updateCount()</span> 顯示人數統計</div><div class="step-detail">即時計算「出席 X / Y 人」並顯示</div></div></div>
-          <div class="step"><div class="step-dot cyan"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">restoreDraftIfExists()</span> 偵測草稿</div><div class="step-detail">如果偵測到上次未送出的草稿，彈出確認視窗詢問是否還原</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">restoreDraftIfExists()</span> 偵測草稿</div><div class="step-detail">如果偵測到上次未送出的草稿，彈出確認視窗詢問是否還原</div></div></div>
         </div>
       </div>
     </div>
@@ -736,14 +738,14 @@
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon orange"></div>
+        <div class="node-icon blue"></div>
         <div class="node-text"><div class="node-label">按下「確認送出」</div><div class="node-sub">資料驗證 → 上傳 → 寫入試算表</div></div>
         <span class="node-badge badge-both">前台 → 後台</span>
         <div class="node-chevron">▸</div>
       </div>
       <div class="node-children">
         <div class="step-list">
-          <div class="step"><div class="step-dot orange"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">submitForm()</span> 前端防呆檢查（5 道）</div><div class="step-detail">① 社課內容不可空白<br>② 內容不可超過 200 字<br>③ 老師必須已簽名<br>④ 代課老師姓名不可超過 30 字<br>⑤ 日期必須在允許範圍內</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">submitForm()</span> 前端防呆檢查（5 道）</div><div class="step-detail">① 社課內容不可空白<br>② 內容不可超過 200 字<br>③ 老師必須已簽名<br>④ 代課老師姓名不可超過 30 字<br>⑤ 日期必須在允許範圍內</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">組裝送出資料</div><div class="step-detail">收集所有 checkbox 的勾選狀態，將簽名轉成 Base64 PNG 圖片格式</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">showSubmitOverlay()</span> 顯示傳送遮罩</div><div class="step-detail">鎖住整個畫面，避免使用者在傳送過程中誤觸操作</div></div></div>
           <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">submitAttendance(data)</span></div><div class="step-detail">① 驗證 email、日期格式<br>② 60 秒冷卻防重複提交<br>③ <span class="fn-tag green">sanitize()</span> 過濾所有文字防注入<br>④ 將簽名 PNG 上傳至 Google Drive 取得連結<br>⑤ <span class="fn-tag purple">sheet.appendRow()</span> 寫入一筆新紀錄至試算表</div></div></div>
@@ -754,17 +756,17 @@
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon cyan"></div>
+        <div class="node-icon blue"></div>
         <div class="node-text"><div class="node-label">草稿自動儲存系統</div><div class="node-sub">防止填寫到一半意外關閉網頁</div></div>
         <span class="node-badge badge-front">前台</span>
         <div class="node-chevron">▸</div>
       </div>
       <div class="node-children">
         <div class="step-list">
-          <div class="step"><div class="step-dot cyan"></div><div class="step-content"><div class="step-title">每次操作都自動儲存</div><div class="step-detail">任何勾選、打字、選擇變動都會觸發 <span class="fn-tag blue">saveDraft()</span>，存入瀏覽器 localStorage</div></div></div>
-          <div class="step"><div class="step-dot cyan"></div><div class="step-content"><div class="step-title">下次開表單時偵測</div><div class="step-detail"><span class="fn-tag blue">restoreDraftIfExists()</span> 彈出「偵測到未送出的內容，要還原嗎？」</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">確認還原 → 所有欄位還原</div><div class="step-detail">日期、社課內容、老師出席、勾選狀態全部還原</div></div></div>
-          <div class="step"><div class="step-dot red"></div><div class="step-content"><div class="step-title">取消 / 送出成功 → 清除草稿</div><div class="step-detail"><span class="fn-tag blue">clearDraft()</span> 從 localStorage 移除</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">每次操作都自動儲存</div><div class="step-detail">任何勾選、打字、選擇變動都會觸發 <span class="fn-tag blue">saveDraft()</span>，存入瀏覽器 localStorage</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">下次開表單時偵測</div><div class="step-detail"><span class="fn-tag blue">restoreDraftIfExists()</span> 彈出「偵測到未送出的內容，要還原嗎？」</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">確認還原 → 所有欄位還原</div><div class="step-detail">日期、社課內容、老師出席、勾選狀態全部還原</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">取消 / 送出成功 → 清除草稿</div><div class="step-detail"><span class="fn-tag blue">clearDraft()</span> 從 localStorage 移除</div></div></div>
         </div>
       </div>
     </div>
@@ -791,7 +793,7 @@
       <div class="node-children">
         <div class="step-list">
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">showRecords()</span> 判斷身分 → 幹部</div><div class="step-detail">呼叫 <span class="fn-tag blue">gasPost({action: 'getAttendanceList'})</span></div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getAttendanceList(club)</span></div><div class="step-detail">呼叫 <span class="fn-tag green">getLatestRowsByClub()</span> 讀取該社團所有紀錄，同一天多次提交只保留最新的一筆，按日期新→舊排序</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getAttendanceList(club)</span></div><div class="step-detail">呼叫 <span class="fn-tag green">getLatestRowsByClub()</span> 讀取該社團所有紀錄，同一天多次提交只保留最新的一筆，按日期新→舊排序</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">renderOfficerRecordList()</span> 顯示列表</div><div class="step-detail">每筆顯示「日期（填寫人：XXX）」，可點擊展開詳細</div></div></div>
         </div>
       </div>
@@ -799,7 +801,7 @@
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon purple"></div>
+        <div class="node-icon blue"></div>
         <div class="node-text"><div class="node-label">幹部點開某筆紀錄</div><div class="node-sub">查看該次點名的詳細內容</div></div>
         <span class="node-badge badge-both">前台 → 後台</span>
         <div class="node-chevron">▸</div>
@@ -807,7 +809,7 @@
       <div class="node-children">
         <div class="step-list">
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">showRecordDetail(date)</span></div><div class="step-detail">呼叫 <span class="fn-tag blue">gasPost({action: 'getAttendanceDetail'})</span></div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getAttendanceDetail(club, date)</span></div><div class="step-detail">回傳完整資訊：日期、填寫人、社課內容、老師出席、實到人數、缺席名單，以及該紀錄是否仍可修改（5 天內）</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getAttendanceDetail(club, date)</span></div><div class="step-detail">回傳完整資訊：日期、填寫人、社課內容、老師出席、實到人數、缺席名單，以及該紀錄是否仍可修改（5 天內）</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">渲染詳細卡片</div><div class="step-detail">用美觀的卡片排版顯示所有資訊；若在 5 天可修改期限內，額外顯示「修改」按鈕</div></div></div>
         </div>
       </div>
@@ -823,7 +825,7 @@
       <div class="node-children">
         <div class="step-list">
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">showRecords()</span> 判斷身分 → 社員</div><div class="step-detail">呼叫 <span class="fn-tag blue">gasPost({action: 'getMyAttendance'})</span></div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getMyAttendance(club, identity)</span></div><div class="step-detail">驗證只能查自己的紀錄（不能查別人）；從缺席名單中搜尋該學生姓名，判定出席/缺席</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">後台 <span class="fn-tag green">getMyAttendance(club, identity)</span></div><div class="step-detail">驗證只能查自己的紀錄（不能查別人）；從缺席名單中搜尋該學生姓名，判定出席/缺席</div></div></div>
           <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">renderMemberRecordList()</span> 顯示列表</div><div class="step-detail">每筆顯示「日期：出席 / 缺席」，出席顯示綠色、缺席顯示紅色</div></div></div>
         </div>
       </div>
@@ -844,7 +846,7 @@
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon orange"></div>
+        <div class="node-icon blue"></div>
         <div class="node-text"><div class="node-label">點擊「修改」按鈕</div><div class="node-sub">進入修改模式，載入原有紀錄</div></div>
         <span class="node-badge badge-front">前台</span>
         <div class="node-chevron">▸</div>
@@ -861,24 +863,24 @@
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon cyan"></div>
+        <div class="node-icon blue"></div>
         <div class="node-text"><div class="node-label">修改偵測機制</div><div class="node-sub">沒有修改任何內容就不能按「確認修改」</div></div>
         <span class="node-badge badge-front">前台</span>
         <div class="node-chevron">▸</div>
       </div>
       <div class="node-children">
         <div class="step-list">
-          <div class="step"><div class="step-dot cyan"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">checkIfFormChanged()</span></div><div class="step-detail">每次欄位有變動時自動觸發，逐一比對目前值與原始紀錄的差異</div></div></div>
-          <div class="step"><div class="step-dot cyan"></div><div class="step-content"><div class="step-title">比對項目</div><div class="step-detail">• 社課內容<br>• 老師出席狀態<br>• 代課老師姓名<br>• 缺席名單<br>• 是否重新簽名</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">有修改 → 啟用「確認修改」按鈕</div><div class="step-detail">按鈕變為可點擊狀態</div></div></div>
-          <div class="step"><div class="step-dot red"></div><div class="step-content"><div class="step-title">無修改 → 按鈕鎖定灰色</div><div class="step-detail">防止無意義的重複提交</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title"><span class="fn-tag blue">checkIfFormChanged()</span></div><div class="step-detail">每次欄位有變動時自動觸發，逐一比對目前值與原始紀錄的差異</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">比對項目</div><div class="step-detail">• 社課內容<br>• 老師出席狀態<br>• 代課老師姓名<br>• 缺席名單<br>• 是否重新簽名</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">有修改 → 啟用「確認修改」按鈕</div><div class="step-detail">按鈕變為可點擊狀態</div></div></div>
+          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">無修改 → 按鈕鎖定灰色</div><div class="step-detail">防止無意義的重複提交</div></div></div>
         </div>
       </div>
     </div>
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon green"></div>
+        <div class="node-icon blue"></div>
         <div class="node-text"><div class="node-label">確認修改 → 送出</div><div class="node-sub">走與「確認送出」相同的流程</div></div>
         <span class="node-badge badge-both">前台 → 後台</span>
         <div class="node-chevron">▸</div>
@@ -914,11 +916,11 @@
       <div class="node-children">
         <div class="step-list">
           <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">試算表選單 →「簽名報表」→「產出報表」</div><div class="step-detail"><span class="fn-tag green">renderClubReportDoc()</span></div></div></div>
-          <div class="step"><div class="step-dot blue"></div><div class="step-content"><div class="step-title">① 彈出視窗輸入社課日期</div><div class="step-detail">例如：2026/6/7</div></div></div>
+          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">① 彈出視窗輸入社課日期</div><div class="step-detail">例如：2026/6/7</div></div></div>
           <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">② 讀取「統計總表」建立社團字典</div><div class="step-detail">社團名稱 → 社團編號 + 指導老師</div></div></div>
           <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">③ 讀取「點名紀錄」篩選指定日期</div><div class="step-detail">每社團只保留最新提交的那筆，用 <span class="fn-tag green">normalizeDate()</span> 統一日期格式比對</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">④ 建立 Google 文件表格</div><div class="step-detail">自動產生標題、社團編號/名稱/老師/簽名四欄表格</div></div></div>
-          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">⑤ 從 Drive 讀取簽名圖檔並插入</div><div class="step-detail">用 <span class="fn-tag green">parseDriveId()</span> 從 URL 擷取檔案 ID → 下載圖片 → 插入表格</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">④ 建立 Google 文件表格</div><div class="step-detail">自動產生標題、社團編號/名稱/老師/簽名四欄表格</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">⑤ 從 Drive 讀取簽名圖檔並插入</div><div class="step-detail">用 <span class="fn-tag green">parseDriveId()</span> 從 URL 擷取檔案 ID → 下載圖片 → 插入表格</div></div></div>
           <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">⑥ 將文件移至指定資料夾</div><div class="step-detail">讀取 <span class="fn-tag green">getReportFolderId()</span>（系統設定 B2 格），移動完成後彈出連結</div></div></div>
         </div>
       </div>
@@ -926,7 +928,7 @@
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon green"></div>
+        <div class="node-icon purple"></div>
         <div class="node-text"><div class="node-label">查詢面板（互動式出缺席報表）</div><div class="node-sub">club_search.js — 在試算表中選擇社團即自動產出報表</div></div>
         <span class="node-badge badge-back">後台</span>
         <div class="node-chevron">▸</div>
@@ -944,37 +946,178 @@
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon red"></div>
+        <div class="node-icon purple"></div>
         <div class="node-text"><div class="node-label">新學期清空</div><div class="node-sub">clear.js — 刪除所有點名紀錄、簽名檔、報表</div></div>
         <span class="node-badge badge-back">後台</span>
         <div class="node-chevron">▸</div>
       </div>
       <div class="node-children">
         <div class="step-list">
-          <div class="step"><div class="step-dot red"></div><div class="step-content"><div class="step-title">試算表選單 →「刪除資料」→「刪除所有紀錄」</div><div class="step-detail"><span class="fn-tag green">clearAllRecords()</span></div></div></div>
+          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">試算表選單 →「刪除資料」→「刪除所有紀錄」</div><div class="step-detail"><span class="fn-tag green">clearAllRecords()</span></div></div></div>
           <div class="step"><div class="step-dot orange"></div><div class="step-content"><div class="step-title">① 彈出兩次確認</div><div class="step-detail">第一次：YES/NO 警告對話框<br>第二次：必須輸入「DELETE」驗證碼</div></div></div>
-          <div class="step"><div class="step-dot red"></div><div class="step-content"><div class="step-title">② 刪除「點名紀錄」全部資料列</div><div class="step-detail">保留標題列，刪除第 2 列以下的所有紀錄</div></div></div>
-          <div class="step"><div class="step-dot red"></div><div class="step-content"><div class="step-title">③ 清空簽名資料夾</div><div class="step-detail"><span class="fn-tag green">getSignFolderId()</span> → 將資料夾內所有檔案移到垃圾桶</div></div></div>
-          <div class="step"><div class="step-dot red"></div><div class="step-content"><div class="step-title">④ 清空報表資料夾</div><div class="step-detail"><span class="fn-tag green">getReportFolderId()</span> → 將所有報表文件移到垃圾桶</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">② 刪除「點名紀錄」全部資料列</div><div class="step-detail">保留標題列，刪除第 2 列以下的所有紀錄</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">③ 清空簽名資料夾</div><div class="step-detail"><span class="fn-tag green">getSignFolderId()</span> → 將資料夾內所有檔案移到垃圾桶</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">④ 清空報表資料夾</div><div class="step-detail"><span class="fn-tag green">getReportFolderId()</span> → 將所有報表文件移到垃圾桶</div></div></div>
         </div>
       </div>
     </div>
 
     <div class="tree-node">
       <div class="node-header" onclick="toggleNode(this)">
-        <div class="node-icon yellow"></div>
+        <div class="node-icon green"></div>
         <div class="node-text"><div class="node-label">試算表選單建立</div><div class="node-sub">setting.js — 開啟試算表時自動建立自訂選單</div></div>
         <span class="node-badge badge-back">後台</span>
         <div class="node-chevron">▸</div>
       </div>
       <div class="node-children">
         <div class="step-list">
-          <div class="step"><div class="step-dot yellow"></div><div class="step-content"><div class="step-title"><span class="fn-tag green">onOpen()</span> 試算表開啟時觸發</div><div class="step-detail">自動在選單列建立兩個自訂選單</div></div></div>
-          <div class="step"><div class="step-dot yellow"></div><div class="step-content"><div class="step-title">選單一：「簽名報表」</div><div class="step-detail">→ 產出指定日期簽名報表</div></div></div>
-          <div class="step"><div class="step-dot yellow"></div><div class="step-content"><div class="step-title">選單二：「刪除資料」</div><div class="step-detail">→ 刪除所有點名紀錄（新學期用）</div></div></div>
+          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title"><span class="fn-tag green">onOpen()</span> 試算表開啟時觸發</div><div class="step-detail">自動在選單列建立兩個自訂選單</div></div></div>
+          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">選單一：「簽名報表」</div><div class="step-detail">→ 產出指定日期簽名報表</div></div></div>
+          <div class="step"><div class="step-dot green"></div><div class="step-content"><div class="step-title">選單二：「刪除資料」</div><div class="step-detail">→ 刪除所有點名紀錄（新學期用）</div></div></div>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ==================== SHEETS ==================== -->
+<div class="section" id="tab-sheets">
+  <div class="section-title">試算表公式與完整使用</div>
+  <div class="section-desc">前台與 GAS 只負責寫入原始資料；真正把資料整理成客戶可閱讀報表的，是試算表中的公式層。整份試算表可以理解成「底層資料 → 公式彙整 → 報表輸出」三層。</div>
+
+  <div class="overview-grid">
+    <div class="ov-card">
+      <h3>底層資料表</h3>
+      <p><strong>原始名單</strong>：班級、座號、姓名、學號、身分、社團編號、社團名稱。<br><strong>點名紀錄</strong>：每次送出的正式點名資料。<br><strong>系統設定</strong>：簽名/報表資料夾、測試帳號。<br><strong>系統日誌</strong>：錯誤追蹤。</p>
+    </div>
+    <div class="ov-card">
+      <h3>公式彙整表</h3>
+      <p>主要使用 <strong>LET</strong>、<strong>ARRAYFORMULA</strong>、<strong>MAP</strong>、<strong>FILTER</strong>、<strong>XLOOKUP</strong>、<strong>VLOOKUP</strong>、<strong>HSTACK</strong> 等函數，把點名原始資料自動整理成管理報表。</p>
+    </div>
+    <div class="ov-card">
+      <h3>輸出工具</h3>
+      <p><strong>查詢面板</strong>：選社團後，由 <code>club_search.js</code> 自動畫出全學期矩陣、缺席明細、社課摘要。<br><strong>簽名報表</strong>：由 <code>sign.js</code> 匯出成 Google 文件。</p>
+    </div>
+    <div class="ov-card">
+      <h3>客戶操作順序</h3>
+      <p>1. 維護「原始名單」與「系統設定」<br>2. 從前台網頁送出點名，資料進入「點名紀錄」<br>3. 透過公式表看當日統計與缺曠<br>4. 用「查詢面板」查整學期，用選單產出簽名報表</p>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl-btn" onclick="toggleAll(this, true)">全部展開</button>
+    <button class="ctrl-btn" onclick="toggleAll(this, false)">全部收合</button>
+  </div>
+
+  <div class="tree">
+
+    <div class="tree-node">
+      <div class="node-header" onclick="toggleNode(this)">
+        <div class="node-icon purple"></div>
+        <div class="node-text"><div class="node-label">整份試算表如何串起來</div><div class="node-sub">先看資料流，就能理解每張工作表的角色</div></div>
+        <span class="node-badge badge-storage">資料流</span>
+        <div class="node-chevron">▸</div>
+      </div>
+      <div class="node-children">
+        <div class="step-list">
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">① 「原始名單」是身分與社團主檔</div><div class="step-detail">系統登入、載入社員名單、社團對照，都是先讀這張表；主要欄位為班級、座號、姓名、學號、身分、社團編號、社團名稱。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">② 「點名紀錄」是唯一正式交易表</div><div class="step-detail">前台送出點名後，<span class="fn-tag green">submitAttendance()</span> 會新增一列：時間戳記、填寫人、社團、社課日期、內容、老師出席、代課老師、實到、缺席名單、簽名網址。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">③ 公式層把原始資料整理成管理報表</div><div class="step-detail">「原始社團」、「統計總表」、「當日缺曠」、「校內/校外出席老師紀錄」會自動讀取底層資料，整理出社團清單、未繳交狀態、缺席名單與老師出席統計。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">④ 「查詢面板」負責逐社團查看整學期</div><div class="step-detail">在工作表輸入社團名稱後，<span class="fn-tag green">onEdit()</span> 會直接畫出出缺席矩陣、缺席明細、社課內容摘要，適合平常查詢。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">⑤ 「簽名報表」再把結果輸出成 Google 文件</div><div class="step-detail"><span class="fn-tag green">renderClubReportDoc()</span> 會讀取「統計總表」與「點名紀錄」，將指定日期各社團簽名圖檔彙整成可列印的文件。</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tree-node">
+      <div class="node-header" onclick="toggleNode(this)">
+        <div class="node-icon purple"></div>
+        <div class="node-text"><div class="node-label">「原始社團」公式：自動建立社團清單</div><div class="node-sub">公式位置：A2；用途是從原始名單長出社團主表</div></div>
+        <span class="node-badge badge-storage">公式層</span>
+        <div class="node-chevron">▸</div>
+      </div>
+      <div class="node-children">
+        <div class="step-list">
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">主公式：<span class="fn-tag purple">LET + SORT + UNIQUE + FILTER + MAP</span></div><div class="step-detail">從「原始名單」的社團編號與社團名稱欄位抓出所有不重複社團，並自動排序。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">自動計算每個社團應到人數</div><div class="step-detail">公式會用 <span class="fn-tag purple">COUNTIF</span> 計算每個社團在原始名單中共有多少位社員，作為後續應到基準。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">這張表是後面所有報表的社團字典</div><div class="step-detail">「統計總表」與老師出席統計都會先讀這張表，因此新社團只要出現在原始名單，這裡就會自動長出來。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">客戶實際使用方式</div><div class="step-detail">平常不需要手動改 A2 公式欄；只要更新「原始名單」即可。若右側另有老師、校內/校外、統計標記欄位，則依學校管理需求人工維護。</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tree-node">
+      <div class="node-header" onclick="toggleNode(this)">
+        <div class="node-icon purple"></div>
+        <div class="node-text"><div class="node-label">「統計總表」公式：看當天哪個社團已繳交</div><div class="node-sub">公式位置：A2；核心是把社團主檔與點名紀錄依日期對起來</div></div>
+        <span class="node-badge badge-storage">公式層</span>
+        <div class="node-chevron">▸</div>
+      </div>
+      <div class="node-children">
+        <div class="step-list">
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">查詢日期來源：<span class="fn-tag purple">I3</span></div><div class="step-detail">這張表的公式會先讀 I3 的日期，作為「今天要檢查哪一天的點名狀況」的目標日期。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">主公式：<span class="fn-tag purple">LET + FILTER + MAP + XLOOKUP + HSTACK</span></div><div class="step-detail">先從「原始社團」抓社團編號、名稱、應到人數，再從「點名紀錄」組出「社團_日期」鍵值，找出每個社團該日最新一筆提交。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">產出欄位</div><div class="step-detail">公式會輸出社團編號、社團名稱、是否已繳交、最後填寫人、應到人數、實到人數、出席率，讓管理者一眼看完當日狀況。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">若同一天有修改紀錄，只取最新那筆</div><div class="step-detail">因為公式使用最後匹配邏輯，所以幹部後續修改資料時，總表會自動反映最新提交結果，不需要人工刪舊資料。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">客戶實際使用方式</div><div class="step-detail">每日只要改一次 I3 的日期，就能立即看到「哪些社團已交、誰填的、實到多少人」。這張表也是簽名報表建立社團對照時的重要來源。</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tree-node">
+      <div class="node-header" onclick="toggleNode(this)">
+        <div class="node-icon purple"></div>
+        <div class="node-text"><div class="node-label">「當日缺曠」公式：自動整理全校當天缺席名單</div><div class="node-sub">公式位置：B5；把各社團缺席名單展平成可追蹤的學生清冊</div></div>
+        <span class="node-badge badge-storage">公式層</span>
+        <div class="node-chevron">▸</div>
+      </div>
+      <div class="node-children">
+        <div class="step-list">
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">查詢日期來源：<span class="fn-tag purple">C2</span></div><div class="step-detail">先在 C2 指定要查詢的社課日期，公式就會從「點名紀錄」篩出當天資料。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">主公式：<span class="fn-tag purple">FILTER + SORT + UNIQUE 邏輯 + TEXTJOIN + SPLIT + TOCOL</span></div><div class="step-detail">先取出每個社團當天最新一筆，再把所有缺席名單合併、拆行、清理空白，變成一列一位學生的資料。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">補回學號：<span class="fn-tag purple">VLOOKUP</span></div><div class="step-detail">公式會把「班級_座號_姓名」再回查「原始名單」，補出正式學號，最後輸出班、座、名、學號四欄。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">自動排除全勤與空白資料</div><div class="step-detail">若某社團標示為「全勤」或當天尚未有缺席資料，公式不會把它列進結果，所以這張表直接可拿來做當日缺席名冊。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">客戶實際使用方式</div><div class="step-detail">每天只需改 C2 的日期，就能得到全校跨社團的缺席學生清單，適合值班老師、學務單位或後續通知使用。</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tree-node">
+      <div class="node-header" onclick="toggleNode(this)">
+        <div class="node-icon purple"></div>
+        <div class="node-text"><div class="node-label">「校內 / 校外出席老師紀錄」公式：自動算老師出席統計</div><div class="node-sub">公式位置：A2；以社團分類欄位與點名資料自動生成老師端報表</div></div>
+        <span class="node-badge badge-storage">公式層</span>
+        <div class="node-chevron">▸</div>
+      </div>
+      <div class="node-children">
+        <div class="step-list">
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">資料來源</div><div class="step-detail">公式會讀取「原始社團」中的社團、老師與分類欄位，再對照「點名紀錄」中的老師是否出席（G 欄）與代課老師（H 欄）。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">主公式：<span class="fn-tag purple">ARRAYFORMULA + FILTER + SORT + MAP + UNIQUE + VSTACK</span></div><div class="step-detail">先把同一社團同一天的舊紀錄排除，只保留最新結果，再統計每位老師的應到次數、請假次數與實到次數。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">校內表會額外把代課老師獨立列出</div><div class="step-detail">若社團被設定為需要計入代課統計，且當次老師請假，公式會把代課老師另外整理成單獨列，方便核對實際授課情況。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">校外表則專注於校外社團</div><div class="step-detail">校外社團使用獨立統計表，讓校內、校外兩種管理口徑不會混在一起。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">客戶實際使用方式</div><div class="step-detail">這兩張表適合學期末彙整老師到課狀況、代課次數與請假統計；平常不需要手動重算，更新點名資料後會自動刷新。</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tree-node">
+      <div class="node-header" onclick="toggleNode(this)">
+        <div class="node-icon purple"></div>
+        <div class="node-text"><div class="node-label">「查詢面板」與簽名報表：公式層整理完後怎麼被使用</div><div class="node-sub">前者看整學期細節，後者輸出給行政或列印</div></div>
+        <span class="node-badge badge-back">工具層</span>
+        <div class="node-chevron">▸</div>
+      </div>
+      <div class="node-children">
+        <div class="step-list">
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">查詢面板不是公式表，而是腳本生成報表</div><div class="step-detail">在「查詢面板」輸入社團後，<span class="fn-tag green">renderClubReport()</span> 會清空舊畫面，再直接從「點名紀錄」與「原始名單」畫出三大板塊。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">三大板塊用途</div><div class="step-detail">A：出缺席矩陣看整學期每位學生出席情況。B：缺席明細看每一天缺誰。C：社課摘要看日期、填寫人、社課內容、老師出席與簽名連結。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">簽名連結會寫成試算表公式</div><div class="step-detail">程式會把 Google Drive 簽名網址組成 <span class="fn-tag green">HYPERLINK()</span>，讓使用者在查詢面板中可以直接點「查看簽名」。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">簽名報表則輸出成正式文件</div><div class="step-detail">從試算表選單執行「產出指定日期簽名報表」後，系統會依日期抓出每社團最新簽名，插入 Google 文件表格，方便列印與留存。</div></div></div>
+          <div class="step"><div class="step-dot purple"></div><div class="step-content"><div class="step-title">客戶實際使用方式</div><div class="step-detail">想看整學期單一社團，用「查詢面板」；想看單日全校狀態，用「統計總表」與「當日缺曠」；想交行政資料或列印簽名，用簽名報表。</div></div></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
