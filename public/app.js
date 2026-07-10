@@ -1125,7 +1125,12 @@ async function restoreDraftIfExists() {
 async function gasPost(body) {
     const res = await fetch(GAS_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        // 刻意使用 text/plain 而非 application/json：
+        // 瀏覽器對帶有 application/json 標頭的請求會先送出 CORS 預檢 (OPTIONS)，
+        // 但 Google Apps Script 網頁應用程式無法正確回應預檢請求，
+        // 會導致 fetch 直接被瀏覽器擋下 (顯示「無法連線至伺服器」)。
+        // 後端 doPost() 仍是直接讀取 e.postData.contents 解析 JSON，不受標頭影響。
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(body)
     });
     const json = await res.json();
