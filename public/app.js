@@ -147,15 +147,23 @@ async function initFormPage() {
     initDatePicker();
     const editDate = getQueryParam('editDate');
     if (editDate) {
-        const r = await gasPost({ action: 'getAttendanceDetail', club: info.club, date: editDate, token: (window._loginInfo && window._loginInfo.token) || window.googleToken });
-        if (r && (r.error || r.status === 'error')) {
-            await showAlert(r.msg || r.message || '讀取失敗');
+        showSubmitOverlay('讀取紀錄中，請稍後…');
+        try {
+            const r = await gasPost({ action: 'getAttendanceDetail', club: info.club, date: editDate, token: (window._loginInfo && window._loginInfo.token) || window.googleToken });
+            hideSubmitOverlay();
+            if (r && (r.error || r.status === 'error')) {
+                await showAlert(r.msg || r.message || '讀取失敗');
+                navigateTo('records.html');
+                return;
+            }
+            await enterEditMode(r, true);
+        } catch (e) {
+            hideSubmitOverlay();
+            await showAlert('讀取失敗，請重試。');
             navigateTo('records.html');
-            return;
         }
-        enterEditMode(r, true);
     } else {
-        enterNewFormMode();
+        await enterNewFormMode();
     }
 }
 
@@ -200,9 +208,7 @@ function showLoginButton() {
             // 版本號不符時淘汰舊 token（例如 UTF-8 編碼修正後舊 TEST_TOKEN 已失效）
             const validVersion = cached._tv === TOKEN_VERSION;
             if (cached._ts && (now - cached._ts) < CACHE_TTL && cached.token && validVersion) {
-                document.getElementById('loginArea').style.display = 'none';
-                document.getElementById('loadingArea').style.display = 'block';
-                fetchUserInfo(cached.token);
+                renderForm(cached);
                 return;
             }
         } catch (e) {
@@ -291,15 +297,28 @@ async function submitTeacherAuth() {
     const btn = document.getElementById('teacherAuthBtn');
     btn.disabled = true; btn.textContent = '驗證中…';
 
+    document.getElementById('loginArea').style.display = 'none';
+    document.getElementById('teacherAuthArea').style.display = 'none';
+    document.getElementById('loadingArea').style.display = 'block';
+
     try {
         // 呼叫 GAS 後台驗證測試密碼與尋找對應社團
         const res = await gasPost({ action: 'verifyTestLogin', email, password, club, identity });
-        btn.disabled = false; btn.textContent = '登入';
-        if (res.error) { await showAlert('錯誤：' + res.msg); return; }
+        if (res.error) {
+            document.getElementById('loginArea').style.display = 'block';
+            document.getElementById('teacherAuthArea').style.display = 'block';
+            document.getElementById('loadingArea').style.display = 'none';
+            btn.disabled = false; btn.textContent = '登入';
+            await showAlert('錯誤：' + res.msg);
+            return;
+        }
         
-        document.getElementById('teacherAuthArea').style.display = 'none';
+        document.getElementById('loadingArea').style.display = 'none';
         renderForm(res); // 登入成功，將規格化後的資料渲染主頁面
     } catch (err) {
+        document.getElementById('loginArea').style.display = 'block';
+        document.getElementById('teacherAuthArea').style.display = 'block';
+        document.getElementById('loadingArea').style.display = 'none';
         btn.disabled = false; btn.textContent = '登入';
         await showAlert('連線失敗，請稍後再試。');
     }
@@ -366,35 +385,81 @@ async function showRecords() {
     const recordsArea = document.getElementById('recordsArea');
     if (!recordsArea) return;
     recordsArea.style.display = 'block';
-    document.getElementById('recordsLoading').style.display = 'block'; // 顯示轉圈圈動畫
-    document.getElementById('recordsList').style.display = 'block';
+    
+    const recordsListEl = document.getElementById('recordsList');
+    recordsListEl.style.display = 'block';
     document.getElementById('recordDetailArea').style.display = 'none';
     document.getElementById('recordsBackLink').style.display = 'block';
-    document.getElementById('recordsList').innerHTML = '';
     
     const info = window._loginInfo;
-
-    if (isOfficer(info.remark)) {
-        // 幹部身分：向後台讀取「整個社團」的所有點名紀錄
-        const list = await gasPost({ action: 'getAttendanceList', club: info.club, token: (window._loginInfo && window._loginInfo.token) || window.googleToken });
+    const isOff = isOfficer(info.remark);
+    const cacheKey = isOff ? ('records_' + info.club) : ('my_records_' + info.club + '_' + info.name);
+    
+    const cached = getSessionItem(cacheKey);
+    let cachedData = null;
+    let hasRenderedCache = false;
+    
+    if (cached) {
+        try {
+            cachedData = JSON.parse(cached);
+            if (Array.isArray(cachedData)) {
+                document.getElementById('recordsLoading').style.display = 'none';
+                if (isOff) {
+                    renderOfficerRecordList(cachedData);
+                } else {
+                    renderMemberRecordList(cachedData);
+                }
+                hasRenderedCache = true;
+            }
+        } catch (e) {
+            removeSessionItem(cacheKey);
+        }
+    }
+    
+    if (!hasRenderedCache) {
+        document.getElementById('recordsLoading').style.display = 'block'; // 顯示轉圈圈動畫
+        recordsListEl.innerHTML = '';
+    }
+    
+    try {
+        const token = (window._loginInfo && window._loginInfo.token) || window.googleToken;
+        let list;
+        if (isOff) {
+            list = await gasPost({ action: 'getAttendanceList', club: info.club, token });
+        } else {
+            const identity = `${info.class} ${info.no} ${info.name}`;
+            list = await gasPost({ action: 'getMyAttendance', club: info.club, identity, token });
+        }
+        
         document.getElementById('recordsLoading').style.display = 'none';
+        
         if (list && list.error) {
-            document.getElementById('recordsList').textContent = list.msg || '讀取失敗，請稍後再試。';
+            if (!hasRenderedCache) {
+                recordsListEl.textContent = list.msg || '讀取失敗，請稍後再試。';
+            }
             return;
         }
-        if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; return; }
-        renderOfficerRecordList(list);
-    } else {
-        // 社員身分：向後台讀取「該社員自己」的個人歷史點名出缺席狀態
-        const identity = `${info.class} ${info.no} ${info.name}`;
-        const list = await gasPost({ action: 'getMyAttendance', club: info.club, identity, token: (window._loginInfo && window._loginInfo.token) || window.googleToken });
-        document.getElementById('recordsLoading').style.display = 'none';
-        if (list && list.error) {
-            document.getElementById('recordsList').textContent = list.msg || '讀取失敗，請稍後再試。';
+        if (!Array.isArray(list)) {
+            if (!hasRenderedCache) {
+                recordsListEl.textContent = '讀取失敗，請稍後再試。';
+            }
             return;
         }
-        if (!Array.isArray(list)) { document.getElementById('recordsList').textContent = '讀取失敗，請稍後再試。'; return; }
-        renderMemberRecordList(list);
+        
+        setSessionItem(cacheKey, JSON.stringify(list));
+        
+        if (!hasRenderedCache || JSON.stringify(list) !== JSON.stringify(cachedData)) {
+            if (isOff) {
+                renderOfficerRecordList(list);
+            } else {
+                renderMemberRecordList(list);
+            }
+        }
+    } catch (err) {
+        document.getElementById('recordsLoading').style.display = 'none';
+        if (!hasRenderedCache) {
+            recordsListEl.textContent = '連線失敗，請稍後再試。';
+        }
     }
 }
 
@@ -437,6 +502,7 @@ function renderMemberRecordList(list) {
  */
 async function showRecordDetail(date) {
     const info = window._loginInfo;
+    document.getElementById('recordsLoading').style.display = 'none';
     document.getElementById('recordsList').style.display = 'none';
     document.getElementById('recordsBackLink').style.display = 'none';
     
@@ -499,15 +565,20 @@ function showNewForm() {
     navigateTo('form.html');
 }
 
-function enterNewFormMode() {
+async function enterNewFormMode() {
     window._originalRecord = null;
     window._editingDate = null;
     window._draftPrompted = false;
 
+    const info = window._loginInfo;
+    const cleanRemark = (info.remark || '').replace(/^外部登入_/, '');
+    if (cleanRemark !== '社長' && cleanRemark !== '副社長') {
+        await showAlert('你並非正副社長，若非正副社長請假請勿擅自點名，點名紀錄將同步於學務處社團活動組', '警告');
+    }
+
     const formArea = document.getElementById('formArea');
     if (formArea) formArea.style.display = 'block';
 
-    const info = window._loginInfo;
     document.getElementById('club').value = info.club || '';
     document.getElementById('fillerName').value = info.name || '';
     document.getElementById('fillerInfo').value = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
@@ -559,16 +630,28 @@ function loadStudents(clubName) {
     if (_loadStudentsInFlight[clubName]) return _loadStudentsInFlight[clubName];
 
     const cacheKey = 'students_' + clubName;
+    const cachedTimeKey = 'students_time_' + clubName;
     const cached = getSessionItem(cacheKey);
+    const cacheTime = getSessionItem(cachedTimeKey);
+    const now = Date.now();
     let cachedData = null;
+    let isCacheValid = false;
 
     if (cached) {
         try {
             cachedData = JSON.parse(cached);
             renderStudents(cachedData);
+            if (cacheTime && (now - parseInt(cacheTime, 10)) < 10 * 60 * 1000) {
+                isCacheValid = true;
+            }
         } catch (e) {
             removeSessionItem(cacheKey);
+            removeSessionItem(cachedTimeKey);
         }
+    }
+
+    if (isCacheValid) {
+        return Promise.resolve();
     }
 
     // 優先使用登入時存入的 token（測試帳號的 TEST_TOKEN 不會被 Google auto_select 污染）
@@ -591,6 +674,7 @@ function loadStudents(clubName) {
             }
 
             setSessionItem(cacheKey, JSON.stringify(students));
+            setSessionItem(cachedTimeKey, String(Date.now()));
 
             // 如果沒有快取資料，或者新抓取的資料與快取不一致，才重新渲染
             if (!cachedData || JSON.stringify(students) !== JSON.stringify(cachedData)) {
@@ -753,6 +837,12 @@ async function submitForm() {
             btn.disabled = false;
             btn.textContent = '確認送出';
             clearDraft();
+            if (window.packagedInformation) {
+                const club = window.packagedInformation.club;
+                const name = window.packagedInformation.fillerName;
+                removeSessionItem('records_' + club);
+                removeSessionItem('my_records_' + club + '_' + name);
+            }
             window._originalRecord = null;
             window._editingDate = null;
             document.getElementById('date').disabled = false;
@@ -784,14 +874,20 @@ async function submitForm() {
 /**
  * 載入指定的一筆現有點名紀錄並切換成修改狀態
  */
-function enterEditMode(record, skipPush) {
+async function enterEditMode(record, skipPush) {
     clearDraft();
     window._editingDate = record.date;
     window._draftPrompted = false; // 重置草稿提示旗標
+
+    const info = window._loginInfo;
+    const cleanRemark = (info.remark || '').replace(/^外部登入_/, '');
+    if (cleanRemark !== '社長' && cleanRemark !== '副社長') {
+        await showAlert('你並非正副社長，若非正副社長請假請勿擅自點名，點名紀錄將同步於學務處社團活動組', '警告');
+    }
+
     const formArea = document.getElementById('formArea');
     if (formArea) formArea.style.display = 'block';
 
-    const info = window._loginInfo;
     // 預填寫原有表單資料
     document.getElementById('club').value = info.club || '';
     document.getElementById('identityClubName').value = (info.clubId || '') + ' ' + (info.club || '');
