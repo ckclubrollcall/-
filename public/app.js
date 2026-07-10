@@ -52,129 +52,119 @@ function removeSessionItem(key) {
 }
 
 // ==========================================
-// 1. 頁面切換與路由 (Browser History API)
+// 1. 頁面導向與初始化
 // ==========================================
 
-/**
- * 核心網頁畫面渲染器
- * 根據目前的「狀態名稱」顯示對應的 HTML 區塊，並隱藏其他不相關的區域。
- * 這能確保在點選返回或重新整理時，不會顯示多個畫面或出現空白。
- */
-function renderPage(page, state) {
-    // 預先隱藏所有頁面區塊
-    const areas = ['loadingArea', 'loginArea', 'teacherAuthArea', 'menuArea', 'formArea', 'recordsArea'];
-    areas.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
+function getCurrentPage() {
+    return (document.body && document.body.dataset && document.body.dataset.page) ? document.body.dataset.page : '';
+}
 
-    if (page === 'menu') {
-        // 顯示主選單畫面
-        document.getElementById('menuArea').style.display = 'flex';
-        // 清空修改模式暫存，重置日期欄位
-        window._originalRecord = null;
-        window._editingDate = null;
-        document.getElementById('date').disabled = false;
-    } else if (page === 'form') {
-        // 顯示填寫點名表單畫面
-        document.getElementById('formArea').style.display = 'block';
-        document.getElementById('date').disabled = false;
+function navigateTo(path) {
+    window.location.href = path;
+}
 
-        const info = window._loginInfo;
-        // 自動填入目前登入使用者的社團與姓名
-        document.getElementById('club').value = info.club || '';
-        document.getElementById('fillerName').value = info.name || '';
-        document.getElementById('fillerInfo').value = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
-        document.getElementById('identityClubName').value = (info.clubId || '') + ' ' + (info.club || '');
-        const displayRemark = (info.remark || '').replace(/^外部登入_/, '');
-        document.getElementById('identityWriter').value = displayRemark + ' ' + (info.name || '');
-
-        // 設定下方按鈕功能為「送出新點名表」
-        document.getElementById('submitBtn').textContent = '確認送出';
-        document.getElementById('submitBtn').onclick = submitForm;
-        document.getElementById('formFooterLink').textContent = '返回';
-        document.getElementById('formFooterLink').onclick = function() {
-            history.back(); // 使用瀏覽器返回，維持歷史記錄同步
-            return false;
-        };
-
-        initCanvas(); // 初始化簽名板
-
-        // 重置表單欄位以防殘留上次填寫的內容
-        document.getElementById('desc').value = '';
-        updateCharCounter(document.getElementById('desc'), 'descCounter', 200);
-        document.getElementById('teacherPresent').value = '是';
-        toggleSubTeacher();
-        document.getElementById('subTeacher').value = '無';
-
-        // 重置老師簽名板與狀態提示
-        hasSigned = false;
-        window._keepOriginalSignature = false;
-        if (canvas && ctx) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        const sigStatus = document.getElementById('sigStatus');
-        if (sigStatus) {
-            sigStatus.textContent = '尚未簽名';
-            sigStatus.style.display = 'none';
-        }
-
-        window._draftPrompted = false; // 重置草稿提示旗標
-        loadStudents(info.club); // 載入社團名單
-    } else if (page === 'editForm') {
-        // 進入修改已送出表單的模式
-        if (state && state.record) {
-            enterEditMode(state.record, true);
-        } else {
-            history.back(); // 缺少資料時自動返回上一頁
-        }
-    } else if (page === 'records') {
-        // 顯示出缺席紀錄專區
-        document.getElementById('recordsArea').style.display = 'block';
-        document.getElementById('recordsList').style.display = 'block';
-        document.getElementById('recordDetailArea').style.display = 'none';
-        document.getElementById('recordsBackLink').style.display = 'block';
-        showRecords(true); // 載入最新歷史紀錄
-    } else if (page === 'recordDetail') {
-        // 顯示單筆紀錄的詳細內容
-        if (state && state.date) {
-            showRecordDetail(state.date, true);
-        } else {
-            history.back();
-        }
-    } else {
-        // 預設Fallback：如果已登入就去主選單，未登入就顯示登入按鈕
-        if (window._loginInfo) {
-            document.getElementById('menuArea').style.display = 'flex';
-        } else {
-            showLoginButton();
-        }
+function getQueryParam(key) {
+    try {
+        return new URLSearchParams(window.location.search).get(key);
+    } catch (e) {
+        return null;
     }
 }
 
-/**
- * 回到主選單
- * 點選網頁上方標題時觸發，若已登入則引導回主選單。
- */
+function applyLoginInfo(info) {
+    window._loginInfo = info;
+    if (info && info.token) window.googleToken = info.token;
+
+    const remark = (info && info.remark) || '';
+    let userFillerInfo = (remark || '') + '-' + ((info && info.class) || '') + ' ' + ((info && info.no) || '') + ' ' + ((info && info.name) || '');
+
+    if (!window.packagedInformation) {
+        const tempPackagedInformation = Object.freeze(
+            new PackagedUserInfo((info && info.email) || '', userFillerInfo, (info && info.club) || '', (info && info.name) || '')
+        );
+        Object.defineProperty(window, "packagedInformation", {
+            value: tempPackagedInformation, writable: false, configurable: false, enumerable: true,
+        });
+    }
+}
+
+function getCachedLoginInfo() {
+    const raw = getSessionItem(USER_CACHE_KEY);
+    if (!raw) return null;
+    try {
+        return JSON.parse(raw);
+    } catch (e) {
+        removeSessionItem(USER_CACHE_KEY);
+        return null;
+    }
+}
+
+function requireLogin() {
+    const cached = getCachedLoginInfo();
+    if (!cached || !cached.token) {
+        navigateTo('index.html');
+        return false;
+    }
+    applyLoginInfo(cached);
+    return true;
+}
+
 function goHome() {
-    if (!window._loginInfo) return; // 還沒登入就不動作
-    if (history.state?.page === 'menu') return; // 如果已經在主選單了也不重覆執行
-    
-    history.pushState({ page: 'menu' }, ''); // 記錄在瀏覽器歷史中
-    renderPage('menu');
+    if (!window._loginInfo) {
+        navigateTo('index.html');
+        return;
+    }
+    if (getCurrentPage() !== 'menu') navigateTo('menu.html');
 }
 
-// 監聽瀏覽器的「上一頁」與「下一頁」操作，自動將網頁渲染成對應畫面
-window.addEventListener('popstate', function(e) {
-    const state = e.state;
-    if (state && state.page) {
-        renderPage(state.page, state);
+function initMenuPage() {
+    if (!requireLogin()) return;
+    const info = window._loginInfo;
+    const newFormBtn = document.getElementById('btnNewForm');
+    if (newFormBtn) newFormBtn.style.display = isOfficer(info.remark) ? 'flex' : 'none';
+    const menuArea = document.getElementById('menuArea');
+    if (menuArea) menuArea.style.display = 'flex';
+}
+
+async function initRecordsPage() {
+    if (!requireLogin()) return;
+    const date = getQueryParam('date');
+    if (date) {
+        await showRecordDetail(date);
     } else {
-        if (window._loginInfo) {
-            renderPage('menu');
-        }
+        await showRecords();
     }
-});
+}
+
+async function initFormPage() {
+    if (!requireLogin()) return;
+    const info = window._loginInfo;
+    if (!isOfficer(info.remark)) {
+        // 非幹部不得直接以網址進入點名表單頁面
+        navigateTo('menu.html');
+        return;
+    }
+    initDatePicker();
+    const editDate = getQueryParam('editDate');
+    if (editDate) {
+        const r = await gasPost({ action: 'getAttendanceDetail', club: info.club, date: editDate, token: (window._loginInfo && window._loginInfo.token) || window.googleToken });
+        if (r && (r.error || r.status === 'error')) {
+            await showAlert(r.msg || r.message || '讀取失敗');
+            navigateTo('records.html');
+            return;
+        }
+        enterEditMode(r, true);
+    } else {
+        enterNewFormMode();
+    }
+}
+
+function initPage() {
+    const page = getCurrentPage();
+    if (page === 'menu') initMenuPage();
+    else if (page === 'records') initRecordsPage();
+    else if (page === 'form') initFormPage();
+}
 
 // ==========================================
 // 2. Google 登入與測試帳號驗證流程
@@ -194,7 +184,6 @@ function initGoogleSignIn() {
         cancel_on_tap_outside: false
     });
     showLoginButton();
-    initDatePicker(); // 設定日期選擇器的範圍限制
 }
 
 /**
@@ -211,8 +200,9 @@ function showLoginButton() {
             // 版本號不符時淘汰舊 token（例如 UTF-8 編碼修正後舊 TEST_TOKEN 已失效）
             const validVersion = cached._tv === TOKEN_VERSION;
             if (cached._ts && (now - cached._ts) < CACHE_TTL && cached.token && validVersion) {
-                renderForm(cached); // 渲染主選單
-                fetchUserInfo(cached.token); // 向後台確認 Token 狀態
+                document.getElementById('loginArea').style.display = 'none';
+                document.getElementById('loadingArea').style.display = 'block';
+                fetchUserInfo(cached.token);
                 return;
             }
         } catch (e) {
@@ -255,11 +245,6 @@ async function handleGoogleCredential(response) {
 async function fetchUserInfo(token) {
     try {
         const res = await gasPost({ action: 'getLoginUser', token });
-        if (res && res.error && res.needLogout) {
-            await showAlert(res.msg || '登入狀態已過期，請重新登入。');
-            switchAccount(); // 強制登出
-            return;
-        }
         if (res && !res.token) {
             res.token = token;
         }
@@ -286,7 +271,7 @@ function handleUserInfo(info, token) {
         showError(info.msg || '驗證失敗，請重新整理頁面再試。');
         return;
     }
-    renderForm(info); // 通過驗證，顯示主選單
+    renderForm(info);
 }
 
 /**
@@ -329,32 +314,15 @@ function renderForm(info) {
         setSessionItem(USER_CACHE_KEY, JSON.stringify(toCache)); // 僅儲存在目前瀏覽器工作階段
     } catch (e) {}
 
-    window._loginInfo = info;
-    if (info.token) {
-        window.googleToken = info.token;
+    applyLoginInfo(info);
+
+    const newFormBtn = document.getElementById('btnNewForm');
+    if (newFormBtn) newFormBtn.style.display = isOfficer(info.remark) ? 'flex' : 'none';
+
+    if (getCurrentPage() === 'login') {
+        navigateTo('menu.html');
+        return;
     }
-
-    // 將登入身分轉為防竄改的全域變數
-    let userFillerInfo = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
-    if (!window.packagedInformation) {
-        const tempPackagedInformation = Object.freeze(
-            new PackagedUserInfo(info.email || '', userFillerInfo, info.club || '', info.name || '')
-        );
-        Object.defineProperty(window, "packagedInformation", {
-            value: tempPackagedInformation, writable: false, configurable: false, enumerable: true,
-        });
-    }
-
-    // 只有幹部或管理員才能看到「開始點名」按鈕，社員只能查詢
-    document.getElementById('btnNewForm').style.display = isOfficer(info.remark) ? 'flex' : 'none';
-
-    // 若使用者已離開主選單（例如已進入表單或紀錄頁），
-    // 不重新顯示 menuArea，避免背景 fetchUserInfo 完成後蓋掉目前頁面
-    const currentPage = history.state?.page;
-    if (currentPage && currentPage !== 'menu') return;
-
-    document.getElementById('menuArea').style.display = 'flex';
-    history.replaceState({ page: 'menu' }, ''); // 置換目前的歷史頁面為首頁 menu
 }
 
 /**
@@ -371,7 +339,7 @@ function switchAccount() {
     if (window.google && google.accounts && google.accounts.id) {
         google.accounts.id.disableAutoSelect(); // 關閉 Google 自動選擇帳號
     }
-    location.reload(); // 重新整理網頁
+    navigateTo('index.html');
 }
 
 function clearStudentCaches() {
@@ -394,16 +362,10 @@ function clearStudentCaches() {
 /**
  * 載入並顯示出缺席歷史紀錄列表
  */
-async function showRecords(skipPush) {
-    if (!skipPush) {
-        history.pushState({ page: 'records' }, ''); // 寫入瀏覽器上一頁記錄
-    }
-    ['loadingArea', 'loginArea', 'teacherAuthArea', 'menuArea', 'formArea', 'recordsArea'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-    document.getElementById('menuArea').style.display = 'none';
-    document.getElementById('recordsArea').style.display = 'block';
+async function showRecords() {
+    const recordsArea = document.getElementById('recordsArea');
+    if (!recordsArea) return;
+    recordsArea.style.display = 'block';
     document.getElementById('recordsLoading').style.display = 'block'; // 顯示轉圈圈動畫
     document.getElementById('recordsList').style.display = 'block';
     document.getElementById('recordDetailArea').style.display = 'none';
@@ -448,7 +410,7 @@ function renderOfficerRecordList(list) {
         const item = document.createElement('div');
         item.className = 'record-item';
         item.textContent = `${r.date}（填寫人：${r.fillerName}）`;
-        item.onclick = () => showRecordDetail(r.date); // 點選展開詳細內容
+        item.onclick = () => navigateTo(`records.html?date=${encodeURIComponent(r.date)}`);
         div.appendChild(item);
     });
 }
@@ -473,12 +435,8 @@ function renderMemberRecordList(list) {
 /**
  * 顯示特定一天的點名紀錄詳細資訊（限幹部）
  */
-async function showRecordDetail(date, skipPush) {
+async function showRecordDetail(date) {
     const info = window._loginInfo;
-
-    if (!skipPush) {
-        history.pushState({ page: 'recordDetail', date: date }, ''); // 將此頁面詳細資料狀態推進歷史堆疊
-    }
     document.getElementById('recordsList').style.display = 'none';
     document.getElementById('recordsBackLink').style.display = 'none';
     
@@ -491,7 +449,9 @@ async function showRecordDetail(date, skipPush) {
     if (r.error || r.status === 'error') {
         await showAlert(r.msg || r.message || '讀取失敗');
         detailDiv.style.display = 'none';
-        document.getElementById('recordsList').style.display = 'block';
+        // 直接以網址開啟本頁時 recordsList 可能從未載入過，
+        // 因此改為重新載入完整清單，避免使用者卡在空白畫面且無法返回
+        await showRecords();
         return;
     }
 
@@ -517,13 +477,13 @@ async function showRecordDetail(date, skipPush) {
 
     // 若該紀錄在允許修改期限內，點選按鈕進入編輯模式
     if (r.editable) {
-        document.getElementById('editRecordBtn').onclick = () => enterEditMode(r);
+        document.getElementById('editRecordBtn').onclick = () => navigateTo(`form.html?editDate=${encodeURIComponent(r.date)}`);
     }
     const detailBackLink = document.getElementById('recordDetailBackLink');
     if (detailBackLink) {
         detailBackLink.addEventListener('click', function(e) {
             e.preventDefault();
-            history.back();
+            navigateTo('records.html');
         }, { once: true });
     }
 }
@@ -536,12 +496,58 @@ async function showRecordDetail(date, skipPush) {
  * 點選「開始點名」後，重置並顯示全新空白點名表單
  */
 function showNewForm() {
+    navigateTo('form.html');
+}
+
+function enterNewFormMode() {
     window._originalRecord = null;
     window._editingDate = null;
-    document.getElementById('submitBtn').disabled = false;
+    window._draftPrompted = false;
 
-    history.pushState({ page: 'form' }, '');
-    renderPage('form');
+    const formArea = document.getElementById('formArea');
+    if (formArea) formArea.style.display = 'block';
+
+    const info = window._loginInfo;
+    document.getElementById('club').value = info.club || '';
+    document.getElementById('fillerName').value = info.name || '';
+    document.getElementById('fillerInfo').value = (info.remark || '') + '-' + (info.class || '') + ' ' + (info.no || '') + ' ' + (info.name || '');
+    document.getElementById('identityClubName').value = (info.clubId || '') + ' ' + (info.club || '');
+    const displayRemark = (info.remark || '').replace(/^外部登入_/, '');
+    document.getElementById('identityWriter').value = displayRemark + ' ' + (info.name || '');
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = false;
+    submitBtn.textContent = '確認送出';
+    submitBtn.onclick = submitForm;
+
+    const footerLink = document.getElementById('formFooterLink');
+    footerLink.textContent = '返回';
+    footerLink.onclick = function() {
+        navigateTo('menu.html');
+        return false;
+    };
+
+    initCanvas();
+
+    document.getElementById('date').disabled = false;
+    document.getElementById('desc').value = '';
+    updateCharCounter(document.getElementById('desc'), 'descCounter', 200);
+    document.getElementById('teacherPresent').value = '是';
+    toggleSubTeacher();
+    document.getElementById('subTeacher').value = '無';
+
+    hasSigned = false;
+    window._keepOriginalSignature = false;
+    if (canvas && ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    const sigStatus = document.getElementById('sigStatus');
+    if (sigStatus) {
+        sigStatus.textContent = '尚未簽名';
+        sigStatus.style.display = 'none';
+    }
+
+    loadStudents(info.club);
 }
 
 const _loadStudentsInFlight = {};
@@ -737,6 +743,7 @@ async function submitForm() {
     showSubmitOverlay('資料傳送中，請勿關閉網頁…');
 
     const isEditing = !!window._editingDate; // 判斷是否為編輯模式
+    const editingDate = window._editingDate;
 
     try {
         const res = await gasPost({ action: 'submitAttendance', data });
@@ -751,10 +758,9 @@ async function submitForm() {
             document.getElementById('date').disabled = false;
             
             if (isEditing) {
-                history.go(-2);
+                navigateTo(`records.html?date=${encodeURIComponent(editingDate)}`);
             } else {
-                history.replaceState({ page: 'records' }, '');
-                renderPage('records');
+                navigateTo('records.html');
             }
         } else {
             // res 必定是 { status: "error", message: "..." }
@@ -782,13 +788,8 @@ function enterEditMode(record, skipPush) {
     clearDraft();
     window._editingDate = record.date;
     window._draftPrompted = false; // 重置草稿提示旗標
-    if (!skipPush) {
-        history.pushState({ page: 'editForm', record: record }, ''); // 記錄在歷史中
-    }
-    document.getElementById('menuArea').style.display = 'none';
-    document.getElementById('recordsArea').style.display = 'none';
-    document.getElementById('recordDetailArea').style.display = 'none';
-    document.getElementById('formArea').style.display = 'block';
+    const formArea = document.getElementById('formArea');
+    if (formArea) formArea.style.display = 'block';
 
     const info = window._loginInfo;
     // 預填寫原有表單資料
@@ -830,8 +831,7 @@ function enterEditMode(record, skipPush) {
         window._originalRecord = null;
         window._editingDate = null;
         document.getElementById('date').disabled = false;
-        history.replaceState({ page: 'records' }, '');
-        renderPage('records');
+        navigateTo('records.html');
         return false;
     };
 }
@@ -885,6 +885,7 @@ function checkIfFormChanged() {
  */
 function initDatePicker() {
     const input = document.getElementById('date');
+    if (!input) return;
     const today = new Date();
     const tz = today.getTimezoneOffset() * 60000;
     const max = new Date(today.getTime() - tz).toISOString().split('T')[0];
@@ -1070,11 +1071,7 @@ async function restoreDraftIfExists() {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return;
 
-    // 檢查目前是否確實在填寫或修改表單頁面，以防在其他頁面彈出提示
-    const currentPage = history.state?.page;
-    if (currentPage !== 'form' && currentPage !== 'editForm') {
-        return;
-    }
+    if (getCurrentPage() !== 'form') return;
 
     // 標記已提示過，避免重複彈出
     window._draftPrompted = true;
@@ -1128,9 +1125,16 @@ async function restoreDraftIfExists() {
 async function gasPost(body) {
     const res = await fetch(GAS_URL, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
     });
-    return res.json();
+    const json = await res.json();
+    if (json && json.error && json.needLogout) {
+        await showAlert(json.msg || '登入狀態已過期，請重新登入。');
+        switchAccount();
+        throw new Error('needLogout');
+    }
+    return json;
 }
 
 /**
@@ -1213,9 +1217,6 @@ function showConfirm(message, title = "確認動作") {
 }
 
 function bindUiEvents() {
-    try { localStorage.removeItem(USER_CACHE_KEY); } catch (e) {}
-    clearStudentCaches();
-
     const bindClick = (id, handler) => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -1228,12 +1229,12 @@ function bindUiEvents() {
     bindClick('siteHeader', goHome);
     bindClick('teacherAuthBtn', submitTeacherAuth);
     bindClick('btnNewForm', showNewForm);
-    bindClick('btnShowRecords', () => showRecords());
+    bindClick('btnShowRecords', () => navigateTo('records.html'));
     bindClick('menuFooterLink', switchAccount);
     bindClick('sigOpenBtn', openSigModal);
     bindClick('sigClearBtn', clearCanvas);
     bindClick('sigCloseBtn', closeSigModal);
-    bindClick('recordsBackAnchor', () => history.back());
+    bindClick('recordsBackAnchor', () => navigateTo('menu.html'));
 
     const dateInput = document.getElementById('date');
     if (dateInput) dateInput.addEventListener('change', saveDraft);
@@ -1264,6 +1265,8 @@ function bindUiEvents() {
     if (window.google && google.accounts && google.accounts.id) {
         initGoogleSignIn();
     }
+
+    initPage();
 }
 
 document.addEventListener('DOMContentLoaded', bindUiEvents);
