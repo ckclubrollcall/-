@@ -33,11 +33,11 @@
   
   
     <!-- CSS -->
-  <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css">
 
 </head>
 
-<body>
+<body data-page="login">
 
   <header id="siteHeader" style="cursor:pointer;">
     <div class="logo">
@@ -90,145 +90,8 @@
       <button class="btn btn-primary" id="teacherAuthBtn" style="margin-top:8px;">登入</button>
     </div>
     
-    <div id="menuArea" style="display:none;">
-      <div class="menu-btn-row">
-        <button class="btn btn-menu-green" id="btnNewForm">
-          <span class="menu-btn-title" style="display: inline-flex; align-items: center; gap: 8px;">
-            <img src="https://raw.githubusercontent.com/ckclubrollcall/-/main/images/%E5%A1%AB%E5%AF%AB%E6%96%B0%E8%A1%A8%E5%96%AEicon.png" alt="開始點名" style="width: 26px; height: 26px; object-fit: contain;">
-            開始點名
-          </span>
-          <span class="menu-btn-desc">建立並填寫今日的社課點名表單</span>
-        </button>
-        <button class="btn btn-menu-blue" id="btnShowRecords">
-          <span class="menu-btn-title" style="display: inline-flex; align-items: center; gap: 8px;">
-            <img src="https://raw.githubusercontent.com/ckclubrollcall/-/main/images/%E6%9F%A5%E8%A9%A2%E7%B4%80%E9%8C%84icon.png" alt="查詢紀錄" style="width: 26px; height: 26px; object-fit: contain;">
-            查詢紀錄
-          </span>
-          <span class="menu-btn-desc">查看或修改過往的歷史點名資料</span>
-        </button>
-      </div>
-      <p style="text-align:center;margin-top:14px;">
-        <a href="#" id="menuFooterLink"
-          style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
-          切換帳號／登出
-        </a>
-      </p>
-    </div>
-
-    <!-- 點名表單 -->
-    <div id="formArea">
-      <input type="hidden" id="club">
-      <input type="hidden" id="fillerName">
-      <input type="hidden" id="fillerInfo">
-
-      <!-- 社團 -->
-      <div class="form-group">
-        <label>社團</label>
-        <input type="text" id="identityClubName" readonly>
-      </div>
-
-      <!-- 社課日期 -->
-      <div class="form-group">
-        <label>社課日期</label>
-        <input type="date" id="date">
-      </div>
-
-      <!-- 填寫人 -->
-      <div class="form-group">
-        <label>填寫人</label>
-        <input type="text" id="identityWriter" readonly>
-      </div>
-
-      <hr class="divider">
-
-      <!-- 社課內容 -->
-      <div class="form-group">
-        <label>社課內容簡述</label>
-        <textarea id="desc" placeholder="請簡述今日社課內容…" maxlength="200"></textarea>
-        <div class="char-counter" id="descCounter">0 / 200</div>
-      </div>
-
-      <!-- 指導老師出席 -->
-      <div class="form-group">
-        <label>指導老師是否出席</label>
-        <select id="teacherPresent">
-          <option value="是">是</option>
-          <option value="否">否</option>
-        </select>
-      </div>
-
-      <!-- 代課老師（老師未出席時顯示） -->
-      <div class="form-group" id="subTeacherGroup" style="display:none;">
-        <label>代課老師姓名</label>
-        <span class="hint">若無代課老師請保留「無」</span>
-        <input type="text" id="subTeacher" value="無" maxlength="30">
-      </div>
-
-      <!-- 老師簽名 -->
-      <div class="form-group">
-        <label>老師簽名</label>
-        <button id="sigOpenBtn" type="button">點擊開啟簽名板</button>
-        <div id="sigStatus">尚未簽名</div>
-      </div>
-
-      <!-- 簽名 Modal -->
-      <div id="sigModal" class="modal-overlay">
-        <div class="modal-content">
-          <h3>老師請在此簽名</h3>
-          <canvas id="sigCanvas"></canvas>
-          <div class="btn-group">
-            <button class="btn btn-red" id="sigClearBtn" type="button">清除重簽</button>
-            <button class="btn btn-green" id="sigCloseBtn" type="button">確認並關閉</button>
-          </div>
-        </div>
-      </div>
-
-      <hr class="divider">
-
-      <!-- 點名區 -->
-      <div class="form-group">
-        <label>點名區 <span id="attendCount" style="font-weight:400;color:var(--gray-500);font-size:.85rem;"></span></label>
-        <div id="studentList" style="text-align:left;padding:24px;color:var(--gray-500);">
-          <div class="spinner" style="margin:0 auto 10px;"></div>載入中…
-        </div>
-      </div>
-
-      <!-- 送出 -->
-      <button class="btn btn-submit" id="submitBtn">確認送出</button>
-      <p style="text-align:center;margin-top:10px;">
-        <a href="#" id="formFooterLink"
-          style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
-          返回
-        </a>
-      </p>
-    </div>
-
-    <!-- 查看點名紀錄 -->
-    <div id="recordsArea" style="display:none;">
-      <div id="recordsLoading" style="text-align:center;padding:32px 0;color:var(--gray-500);">
-        <div class="spinner"></div>
-        載入中…
-      </div>
-      <div id="recordsList"></div>
-      <div id="recordDetailArea" style="display:none;"></div>
-
-      <p style="text-align:center;margin-top:14px;display:none;" id="recordsBackLink">
-        <a href="#" id="recordsBackAnchor"
-          style="font-size:.78rem;color:var(--gray-500);text-decoration:underline;">
-          返回
-        </a>
-      </p>
-    </div>
   </div>
   <footer>開發人員：建中80屆社審會學代 王宥鈞</footer>
-    
-  <!-- 送出中遮罩層，防止重複點擊與誤觸 -->
-  <div id="submitOverlay" class="submit-overlay">
-    <div class="submit-overlay-box">
-      <div class="spinner"></div>
-      <p id="submitOverlayText">資料傳送中，請勿關閉網頁…</p>
-    </div>
-  </div>
 
   <!-- 自訂彈出式視窗 Dialog Modal -->
   <div id="customDialog" class="modal-overlay">
