@@ -60,7 +60,12 @@ function getCurrentPage() {
 }
 
 function navigateTo(path) {
-    window.location.href = path;
+    if (window.location.protocol === 'file:') {
+        window.location.href = path;
+    } else {
+        const cleanPath = path.endsWith('.html') ? path.slice(0, -5) : path;
+        window.location.href = cleanPath;
+    }
 }
 
 function getQueryParam(key) {
