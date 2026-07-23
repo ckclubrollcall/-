@@ -2,7 +2,7 @@
 
 一個為建國中學學生社團設計的線上出缺席點名與簽名管理系統。前台基於 **HTML/CSS/JS (Vanilla)** 打造，後台完全運行於 **Google Apps Script (GAS)**，並以 **Google 試算表 (Google Sheets)** 與 **雲端硬碟 (Google Drive)** 作為資料儲存與報表管理中心。
 
-link:https://rollcall.cksc.tw/
+link: https://rollcall.cksc.tw/
 
 ---
 
